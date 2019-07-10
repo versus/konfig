@@ -16,9 +16,6 @@ import (
 	"unicode"
 )
 
-// this is used for printing debugging logs
-var debug bool
-
 const (
 	flagTag   = "flag"
 	envTag    = "env"
@@ -26,6 +23,15 @@ const (
 	sepTag    = "sep"
 	skipValue = "-"
 )
+
+// this is used for printing debugging logs
+var debug bool
+
+func print(msg string, args ...interface{}) {
+	if debug {
+		log.Printf(msg+"\n", args...)
+	}
+}
 
 type flagValue struct{}
 
@@ -35,12 +41,6 @@ func (v *flagValue) String() string {
 
 func (v *flagValue) Set(string) error {
 	return nil
-}
-
-func print(msg string, args ...interface{}) {
-	if debug {
-		log.Printf(msg+"\n", args...)
-	}
 }
 
 /*
@@ -178,28 +178,34 @@ func getFlagValue(flagName string) string {
  *   - environment variables,
  *   - or configuration files
  */
-func getFieldValue(flag, env, file string) string {
+func getFieldValue(field, flag, env, file string) string {
 	var value string
 
 	// First, try reading from flag
 	if value == "" && flag != skipValue {
 		value = getFlagValue(flag)
-		print("value read from flag %s: %s", flag, value)
+		print("[%s] value read from flag %s: %s", field, flag, value)
 	}
 
 	// Second, try reading from environment variable
 	if value == "" && env != skipValue {
 		value = os.Getenv(env)
-		print("value read from environment variable %s: %s", env, value)
+		print("[%s] value read from environment variable %s: %s", field, env, value)
 	}
 
 	// Third, try reading from file
 	if value == "" && file != skipValue {
 		filepath := os.Getenv(file)
+		print("[%s] value read from file environment variable %s: %s", field, file, filepath)
+
 		if content, err := ioutil.ReadFile(filepath); err == nil {
 			value = string(content)
-			print("value read from file %s: %s", file, value)
+			print("[%s] value read from file %s: %s", field, filepath, value)
 		}
+	}
+
+	if value == "" {
+		print("[%s] falling back to default value", field)
 	}
 
 	return value
@@ -406,13 +412,13 @@ func pick(config interface{}) error {
 			sep = ","
 		}
 
-		print("[%s] expecting separator for list: %s", name, sep)
+		print("[%s] expecting list separator: %s", name, sep)
 
 		// Define a flag for the field so flag.Parse() can be called
 		defaultValue := fmt.Sprintf("%v", vField.Interface())
 		defineFlag(flagName, defaultValue, envName, fileName)
 
-		str := getFieldValue(flagName, envName, fileName)
+		str := getFieldValue(name, flagName, envName, fileName)
 		if str == "" {
 			continue
 		}
@@ -555,7 +561,6 @@ func pick(config interface{}) error {
 
 // Pick reads values for exported fields of a struct from either command-line flags, environment variables, or configuration files.
 // You can also specify default values.
-// You can see examples at https://github.com/moorara/goto/tree/master/config
 func Pick(config interface{}) error {
 	debug = false
 	return pick(config)
@@ -563,7 +568,6 @@ func Pick(config interface{}) error {
 
 // PickAndLog is same as Pick, but it also logs debugging information.
 // You can also specify default values.
-// You can see examples at https://github.com/moorara/goto/tree/master/config
 func PickAndLog(config interface{}) error {
 	debug = true
 	return pick(config)

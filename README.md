@@ -39,7 +39,7 @@ func main() {
 }
 ```
 
-The precendence of sources for reading values is as follows:
+The precedence of sources for reading values is as follows:
 
   1. command-line flags
   2. environment variables
@@ -76,68 +76,36 @@ export ADDRESS_FILE=...
 export ENDPOINTS_FILE=...
 ```
 
+### Skipping
+
 If you want to skip a source for reading values, use `-` as follows:
 
 ```go
-Config := struct {
+type Config struct {
   GithubToken string `env:"-" file:"-"`
-}{}
+}
 ```
 
 In the example above, `GithubToken` can only be set using `github.token` command-line flag.
 
-## Complete Example
+### Customization
+
+You can use Go _struct tags_ to customize the name of expected command-line flags or environment variables.
 
 ```go
-package main
-
-import (
-  "fmt"
-  "net/url"
-  "time"
-
-  "github.com/moorara/konfig"
-)
-
-var Config = struct {
-  unexported         string          // Unexported, will be skipped
-  FieldString        string          `flag:"f.string" env:"F_STRING" file:"F_STRING_FILE"`
-  FieldBool          bool            `flag:"f.bool" env:"F_BOOL" file:"F_BOOL_FILE"`
-  FieldFloat32       float32         `flag:"f.float32" env:"F_FLOAT32" file:"F_FLOAT32_FILE"`
-  FieldFloat64       float64         `flag:"f.float64" env:"F_FLOAT64" file:"F_FLOAT64_FILE"`
-  FieldInt           int             `flag:"f.int" env:"F_INT" file:"F_INT_FILE"`
-  FieldInt8          int8            `flag:"f.int8" env:"F_INT8" file:"F_INT8_FILE"`
-  FieldInt16         int16           `flag:"f.int16" env:"F_INT16" file:"F_INT16_FILE"`
-  FieldInt32         int32           `flag:"f.int32" env:"F_INT32" file:"F_INT32_FILE"`
-  FieldInt64         int64           `flag:"f.int64" env:"F_INT64" file:"F_INT64_FILE"`
-  FieldUint          uint            `flag:"f.uint" env:"F_UINT" file:"F_UINT_FILE"`
-  FieldUint8         uint8           `flag:"f.uint8" env:"F_UINT8" file:"F_UINT8_FILE"`
-  FieldUint16        uint16          `flag:"f.uint16" env:"F_UINT16" file:"F_UINT16_FILE"`
-  FieldUint32        uint32          `flag:"f.uint32" env:"F_UINT32" file:"F_UINT32_FILE"`
-  FieldUint64        uint64          `flag:"f.uint64" env:"F_UINT64" file:"F_UINT64_FILE"`
-  FieldDuration      time.Duration   `flag:"f.duration" env:"F_DURATION" file:"F_DURATION_FILE"`
-  FieldURL           url.URL         `flag:"f.url" env:"F_URL" file:"F_URL_FILE"`
-  FieldStringArray   []string        `flag:"f.string.array" env:"F_STRING_ARRAY" file:"F_STRING_ARRAY_FILE" sep:","`
-  FieldFloat32Array  []float32       `flag:"f.float32.array" env:"F_FLOAT32_ARRAY" file:"F_FLOAT32_ARRAY_FILE" sep:","`
-  FieldFloat64Array  []float64       `flag:"f.float64.array" env:"F_FLOAT64_ARRAY" file:"F_FLOAT64_ARRAY_FILE" sep:","`
-  FieldIntArray      []int           `flag:"f.int.array" env:"F_INT_ARRAY" file:"F_INT_ARRAY_FILE" sep:","`
-  FieldInt8Array     []int8          `flag:"f.int8.array" env:"F_INT8_ARRAY" file:"F_INT8_ARRAY_FILE" sep:","`
-  FieldInt16Array    []int16         `flag:"f.int16.array" env:"F_INT16_ARRAY" file:"F_INT16_ARRAY_FILE" sep:","`
-  FieldInt32Array    []int32         `flag:"f.int32.array" env:"F_INT32_ARRAY" file:"F_INT32_ARRAY_FILE" sep:","`
-  FieldInt64Array    []int64         `flag:"f.int64.array" env:"F_INT64_ARRAY" file:"F_INT64_ARRAY_FILE" sep:","`
-  FieldUintArray     []uint          `flag:"f.uint.array" env:"F_UINT_ARRAY" file:"F_UINT_ARRAY_FILE" sep:","`
-  FieldUint8Array    []uint8         `flag:"f.uint8.array" env:"F_UINT8_ARRAY" file:"F_UINT8_ARRAY_FILE" sep:","`
-  FieldUint16Array   []uint16        `flag:"f.uint16.array" env:"F_UINT16_ARRAY" file:"F_UINT16_ARRAY_FILE" sep:","`
-  FieldUint32Array   []uint32        `flag:"f.uint32.array" env:"F_UINT32_ARRAY" file:"F_UINT32_ARRAY_FILE" sep:","`
-  FieldUint64Array   []uint64        `flag:"f.uint64.array" env:"F_UINT64_ARRAY" file:"F_UINT64_ARRAY_FILE" sep:","`
-  FieldDurationArray []time.Duration `flag:"f.duration.array" env:"F_DURATION_ARRAY" file:"F_DURATION_ARRAY_FILE" sep:","`
-  FieldURLArray      []url.URL       `flag:"f.url.array" env:"F_URL_ARRAY" file:"F_URL_ARRAY_FILE" sep:","`
-}{
-  FieldString: "default value",
-}
-
-func main() {
-  konfig.Pick(&Config)
-  fmt.Printf("%+v\n", Config)
+type Config struct {
+  Database string `flag:"config.database" env:"CONFIG_DATABASE" file:"CONFIG_DATABASE_FILE_PATH"`
 }
 ```
+
+In the example above, `Database` will be read from either:
+
+  1. The command-line flag `config.databas`
+  2. The environment variable `CONFIG_DATABASE`
+  3. The file specified by environment variable `CONFIG_DATABASE_FILE_PATH`
+  4. The default value set on struct instance
+
+### Debugging
+
+If you are not sure how your configuration values are going to be read,
+or they are not read as expected, you can use `PickAndLog` for debugging purposes.

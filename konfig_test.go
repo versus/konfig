@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type Config struct {
+type config struct {
 	unexported         string
 	SkipFlag           string          `flag:"-"`
 	SkipFlagEnv        string          `flag:"-" env:"-"`
@@ -207,19 +207,19 @@ func TestGetFlagValue(t *testing.T) {
 
 func TestGetFieldValue(t *testing.T) {
 	tests := []struct {
-		name            string
-		args            []string
-		envConfig       [2]string
-		fileConfig      [2]string
-		flag, env, file string
-		expectedValue   string
+		name                   string
+		args                   []string
+		envConfig              [2]string
+		fileConfig             [2]string
+		field, flag, env, file string
+		expectedValue          string
 	}{
 		{
 			"SkipFlag",
 			[]string{"/path/to/executable", "-log.level=debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"-", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "-", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"info",
 		},
 		{
@@ -227,7 +227,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable", "-log.level=debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"-", "-", "LOG_LEVEL_FILE",
+			"Field", "-", "-", "LOG_LEVEL_FILE",
 			"error",
 		},
 		{
@@ -235,7 +235,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable", "-log.level=debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"-", "-", "-",
+			"Field", "-", "-", "-",
 			"",
 		},
 		{
@@ -243,7 +243,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable", "-log.level=debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"debug",
 		},
 		{
@@ -251,7 +251,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable", "--log.level=debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"debug",
 		},
 		{
@@ -259,7 +259,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable", "-log.level", "debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"debug",
 		},
 		{
@@ -267,7 +267,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable", "--log.level", "debug"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"debug",
 		},
 		{
@@ -275,7 +275,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable"},
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"info",
 		},
 		{
@@ -283,7 +283,7 @@ func TestGetFieldValue(t *testing.T) {
 			[]string{"/path/to/executable"},
 			[2]string{"LOG_LEVEL", ""},
 			[2]string{"LOG_LEVEL_FILE", "error"},
-			"log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
 			"error",
 		},
 	}
@@ -313,7 +313,7 @@ func TestGetFieldValue(t *testing.T) {
 			err = os.Setenv(tc.fileConfig[0], tmpfile.Name())
 			assert.NoError(t, err)
 
-			value := getFieldValue(tc.flag, tc.env, tc.file)
+			value := getFieldValue(tc.field, tc.flag, tc.env, tc.file)
 			assert.Equal(t, tc.expectedValue, value)
 		})
 	}
@@ -675,7 +675,7 @@ func TestPickError(t *testing.T) {
 	}{
 		{
 			"NonPointer",
-			Config{},
+			config{},
 			"a non-pointer type is passed",
 		},
 		{
@@ -688,6 +688,9 @@ func TestPickError(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := Pick(tc.config)
+			assert.Equal(t, tc.expectedError, err.Error())
+
+			err = PickAndLog(tc.config)
 			assert.Equal(t, tc.expectedError, err.Error())
 		})
 	}
@@ -704,23 +707,23 @@ func TestPick(t *testing.T) {
 		args           []string
 		envs           [][2]string
 		files          [][2]string
-		config         Config
-		expectedConfig Config
+		config         config
+		expectedConfig config
 	}{
 		{
 			"Empty",
 			[]string{},
 			[][2]string{},
 			[][2]string{},
-			Config{},
-			Config{},
+			config{},
+			config{},
 		},
 		{
 			"AllFromDefaults",
 			[]string{},
 			[][2]string{},
 			[][2]string{},
-			Config{
+			config{
 				unexported:         "internal",
 				SkipFlag:           "default",
 				SkipFlagEnv:        "default",
@@ -757,7 +760,7 @@ func TestPick(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
 			},
-			Config{
+			config{
 				unexported:         "internal",
 				SkipFlag:           "default",
 				SkipFlagEnv:        "default",
@@ -833,8 +836,8 @@ func TestPick(t *testing.T) {
 			},
 			[][2]string{},
 			[][2]string{},
-			Config{},
-			Config{
+			config{},
+			config{
 				unexported:         "",
 				SkipFlag:           "",
 				SkipFlagEnv:        "",
@@ -910,8 +913,8 @@ func TestPick(t *testing.T) {
 			},
 			[][2]string{},
 			[][2]string{},
-			Config{},
-			Config{
+			config{},
+			config{
 				unexported:         "",
 				SkipFlag:           "",
 				SkipFlagEnv:        "",
@@ -987,8 +990,8 @@ func TestPick(t *testing.T) {
 			},
 			[][2]string{},
 			[][2]string{},
-			Config{},
-			Config{
+			config{},
+			config{
 				unexported:         "",
 				SkipFlag:           "",
 				SkipFlagEnv:        "",
@@ -1064,8 +1067,8 @@ func TestPick(t *testing.T) {
 			},
 			[][2]string{},
 			[][2]string{},
-			Config{},
-			Config{
+			config{},
+			config{
 				unexported:         "",
 				SkipFlag:           "",
 				SkipFlagEnv:        "",
@@ -1143,8 +1146,8 @@ func TestPick(t *testing.T) {
 				[2]string{"FIELD_URL_ARRAY", "https://example.com,http://localhost:8080"},
 			},
 			[][2]string{},
-			Config{},
-			Config{
+			config{},
+			config{
 				unexported:         "",
 				SkipFlag:           "fromEnv",
 				SkipFlagEnv:        "",
@@ -1222,8 +1225,8 @@ func TestPick(t *testing.T) {
 				[2]string{"FIELD_DURATION_ARRAY_FILE", "90m,120m"},
 				[2]string{"FIELD_URL_ARRAY_FILE", "https://example.com,http://localhost:8080"},
 			},
-			Config{},
-			Config{
+			config{},
+			config{
 				unexported:         "",
 				SkipFlag:           "fromFile",
 				SkipFlagEnv:        "fromFile",
@@ -1305,11 +1308,11 @@ func TestPick(t *testing.T) {
 				[2]string{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
 				[2]string{"FIELD_URL_ARRAY_FILE", "https://example.com,http://localhost:8080"},
 			},
-			Config{
+			config{
 				FieldString:      "default",
 				FieldStringArray: []string{"url1", "url2"},
 			},
-			Config{
+			config{
 				unexported:         "",
 				SkipFlag:           "fromEnv",
 				SkipFlagEnv:        "fromFile",
