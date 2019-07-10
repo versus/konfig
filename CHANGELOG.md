@@ -1,5 +1,14 @@
 # Change Log
 
+## [v0.2.0](https://github.com/moorara/konfig/tree/v0.2.0) (2019-07-10)
+[Full Changelog](https://github.com/moorara/konfig/compare/v0.1.0...v0.2.0)
+
+**Merged pull requests:**
+
+- Clarify flag package and -help option [\#6](https://github.com/moorara/konfig/pull/6) ([moorara](https://github.com/moorara))
+- BREAKING: change file tag to fileenv tag [\#5](https://github.com/moorara/konfig/pull/5) ([moorara](https://github.com/moorara))
+- Improve PickAndLog logs [\#4](https://github.com/moorara/konfig/pull/4) ([moorara](https://github.com/moorara))
+
 ## [v0.1.0](https://github.com/moorara/konfig/tree/v0.1.0) (2019-07-10)
 **Merged pull requests:**
 
