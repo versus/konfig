@@ -49,6 +49,34 @@ type config struct {
 	FieldURLArray      []url.URL       // `flag:"field.url.array" env:"FIELD_URL_ARRAY" fileenv:"FIELD_URL_ARRAY_FILE" sep:","`
 }
 
+func TestFlagValue(t *testing.T) {
+	tests := []struct {
+		name             string
+		fv               *flagValue
+		expectedString   string
+		setString        string
+		expectedSetError error
+	}{
+		{
+			name:             "OK",
+			fv:               &flagValue{},
+			expectedString:   "",
+			setString:        "anything",
+			expectedSetError: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			str := tc.fv.String()
+			assert.Equal(t, tc.expectedString, str)
+
+			err := tc.fv.Set(tc.setString)
+			assert.Equal(t, tc.expectedSetError, err)
+		})
+	}
+}
+
 func TestTokenize(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -212,6 +240,7 @@ func TestGetFieldValue(t *testing.T) {
 		envConfig              [2]string
 		fileConfig             [2]string
 		field, flag, env, file string
+		sets                   *settings
 		expectedValue          string
 	}{
 		{
@@ -220,6 +249,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "-", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"info",
 		},
 		{
@@ -228,6 +258,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "-", "-", "LOG_LEVEL_FILE",
+			&settings{},
 			"error",
 		},
 		{
@@ -236,6 +267,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "-", "-", "-",
+			&settings{},
 			"",
 		},
 		{
@@ -244,6 +276,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"debug",
 		},
 		{
@@ -252,6 +285,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"debug",
 		},
 		{
@@ -260,6 +294,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"debug",
 		},
 		{
@@ -268,6 +303,7 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"debug",
 		},
 		{
@@ -276,15 +312,26 @@ func TestGetFieldValue(t *testing.T) {
 			[2]string{"LOG_LEVEL", "info"},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"info",
 		},
 		{
-			"FromFileContent",
+			"FromFiles",
 			[]string{"/path/to/executable"},
 			[2]string{"LOG_LEVEL", ""},
 			[2]string{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{},
 			"error",
+		},
+		{
+			"FromFilesWithTelepresenceOption",
+			[]string{"/path/to/executable"},
+			[2]string{"LOG_LEVEL", ""},
+			[2]string{"LOG_LEVEL_FILE", "info"},
+			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
+			&settings{checkForTelepresence: true},
+			"info",
 		},
 	}
 
@@ -300,7 +347,15 @@ func TestGetFieldValue(t *testing.T) {
 
 			// Set value in an environment variable
 			err := os.Setenv(tc.envConfig[0], tc.envConfig[1])
+			defer os.Unsetenv(tc.envConfig[0])
 			assert.NoError(t, err)
+
+			// Testing Telepresence option
+			if tc.sets.checkForTelepresence {
+				err := os.Setenv(telepresenceEnvVar, "/")
+				defer os.Unsetenv(telepresenceEnvVar)
+				assert.NoError(t, err)
+			}
 
 			// Write value in a temporary file
 			tmpfile, err := ioutil.TempFile("", "gotest_")
@@ -311,9 +366,10 @@ func TestGetFieldValue(t *testing.T) {
 			err = tmpfile.Close()
 			assert.NoError(t, err)
 			err = os.Setenv(tc.fileConfig[0], tmpfile.Name())
+			defer os.Unsetenv(tc.fileConfig[0])
 			assert.NoError(t, err)
 
-			value := getFieldValue(tc.field, tc.flag, tc.env, tc.file)
+			value := getFieldValue(tc.field, tc.flag, tc.env, tc.file, tc.sets)
 			assert.Equal(t, tc.expectedValue, value)
 		})
 	}
@@ -671,26 +727,29 @@ func TestPickError(t *testing.T) {
 	tests := []struct {
 		name          string
 		config        interface{}
+		opts          []Option
 		expectedError string
 	}{
 		{
 			"NonPointer",
 			config{},
+			nil,
 			"a non-pointer type is passed",
 		},
 		{
 			"NonStruct",
 			new(string),
+			nil,
 			"a non-struct type is passed",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Pick(tc.config)
+			err := Pick(tc.config, tc.opts...)
 			assert.Equal(t, tc.expectedError, err.Error())
 
-			err = PickAndLog(tc.config)
+			err = PickAndLog(tc.config, tc.opts...)
 			assert.Equal(t, tc.expectedError, err.Error())
 		})
 	}
@@ -708,19 +767,21 @@ func TestPick(t *testing.T) {
 		envs           [][2]string
 		files          [][2]string
 		config         config
+		opts           []Option
 		expectedConfig config
 	}{
 		{
 			"Empty",
-			[]string{},
+			[]string{"path/to/binary"},
 			[][2]string{},
 			[][2]string{},
 			config{},
+			nil,
 			config{},
 		},
 		{
 			"AllFromDefaults",
-			[]string{},
+			[]string{"path/to/binary"},
 			[][2]string{},
 			[][2]string{},
 			config{
@@ -760,6 +821,7 @@ func TestPick(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
 			},
+			nil,
 			config{
 				unexported:         "internal",
 				SkipFlag:           "default",
@@ -837,6 +899,7 @@ func TestPick(t *testing.T) {
 			[][2]string{},
 			[][2]string{},
 			config{},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -914,6 +977,7 @@ func TestPick(t *testing.T) {
 			[][2]string{},
 			[][2]string{},
 			config{},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -991,6 +1055,7 @@ func TestPick(t *testing.T) {
 			[][2]string{},
 			[][2]string{},
 			config{},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -1068,6 +1133,7 @@ func TestPick(t *testing.T) {
 			[][2]string{},
 			[][2]string{},
 			config{},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -1108,7 +1174,7 @@ func TestPick(t *testing.T) {
 		},
 		{
 			"AllFromEnvironmentVariables",
-			[]string{},
+			[]string{"path/to/binary"},
 			[][2]string{
 				[2]string{"SKIP_FLAG", "fromEnv"},
 				[2]string{"SKIP_FLAG_ENV", "fromEnv"},
@@ -1147,6 +1213,7 @@ func TestPick(t *testing.T) {
 			},
 			[][2]string{},
 			config{},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "fromEnv",
@@ -1186,8 +1253,8 @@ func TestPick(t *testing.T) {
 			},
 		},
 		{
-			"AllFromFromFileContent",
-			[]string{},
+			"AllFromFromFiles",
+			[]string{"path/to/binary"},
 			[][2]string{},
 			[][2]string{
 				[2]string{"SKIP_FLAG_FILE", "fromFile"},
@@ -1226,6 +1293,7 @@ func TestPick(t *testing.T) {
 				[2]string{"FIELD_URL_ARRAY_FILE", "https://example.com,http://localhost:8080"},
 			},
 			config{},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "fromFile",
@@ -1312,12 +1380,93 @@ func TestPick(t *testing.T) {
 				FieldString:      "default",
 				FieldStringArray: []string{"url1", "url2"},
 			},
+			nil,
 			config{
 				unexported:         "",
 				SkipFlag:           "fromEnv",
 				SkipFlagEnv:        "fromFile",
 				SkipFlagEnvFile:    "",
 				FieldString:        "default",
+				FieldBool:          true,
+				FieldFloat32:       3.1415,
+				FieldFloat64:       3.14159265359,
+				FieldInt:           -2147483648,
+				FieldInt8:          -128,
+				FieldInt16:         -32768,
+				FieldInt32:         -2147483648,
+				FieldInt64:         -9223372036854775808,
+				FieldUint:          4294967295,
+				FieldUint8:         255,
+				FieldUint16:        65535,
+				FieldUint32:        4294967295,
+				FieldUint64:        18446744073709551615,
+				FieldDuration:      d90m,
+				FieldURL:           *localhostURL,
+				FieldStringArray:   []string{"url1", "url2"},
+				FieldFloat32Array:  []float32{3.1415, 2.7182},
+				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
+				FieldIntArray:      []int{-2147483648, 2147483647},
+				FieldInt8Array:     []int8{-128, 127},
+				FieldInt16Array:    []int16{-32768, 32767},
+				FieldInt32Array:    []int32{-2147483648, 2147483647},
+				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
+				FieldUintArray:     []uint{0, 4294967295},
+				FieldUint8Array:    []uint8{0, 255},
+				FieldUint16Array:   []uint16{0, 65535},
+				FieldUint32Array:   []uint32{0, 4294967295},
+				FieldUint64Array:   []uint64{0, 18446744073709551615},
+				FieldDurationArray: []time.Duration{d90m, d120m},
+				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+			},
+		},
+		{
+			"AllFromFromFilesWithTelepresenceOption",
+			[]string{"path/to/binary"},
+			[][2]string{},
+			[][2]string{
+				[2]string{"SKIP_FLAG_FILE", "fromFile"},
+				[2]string{"SKIP_FLAG_ENV_FILE", "fromFile"},
+				[2]string{"SKIP_FLAG_ENV_FILE_FILE", "fromFile"},
+				[2]string{"FIELD_STRING_FILE", "content"},
+				[2]string{"FIELD_BOOL_FILE", "true"},
+				[2]string{"FIELD_FLOAT32_FILE", "3.1415"},
+				[2]string{"FIELD_FLOAT64_FILE", "3.14159265359"},
+				[2]string{"FIELD_INT_FILE", "-2147483648"},
+				[2]string{"FIELD_INT8_FILE", "-128"},
+				[2]string{"FIELD_INT16_FILE", "-32768"},
+				[2]string{"FIELD_INT32_FILE", "-2147483648"},
+				[2]string{"FIELD_INT64_FILE", "-9223372036854775808"},
+				[2]string{"FIELD_UINT_FILE", "4294967295"},
+				[2]string{"FIELD_UINT8_FILE", "255"},
+				[2]string{"FIELD_UINT16_FILE", "65535"},
+				[2]string{"FIELD_UINT32_FILE", "4294967295"},
+				[2]string{"FIELD_UINT64_FILE", "18446744073709551615"},
+				[2]string{"FIELD_DURATION_FILE", "90m"},
+				[2]string{"FIELD_URL_FILE", "http://localhost:8080"},
+				[2]string{"FIELD_STRING_ARRAY_FILE", "url1,url2"},
+				[2]string{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182"},
+				[2]string{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845"},
+				[2]string{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647"},
+				[2]string{"FIELD_INT8_ARRAY_FILE", "-128,127"},
+				[2]string{"FIELD_INT16_ARRAY_FILE", "-32768,32767"},
+				[2]string{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647"},
+				[2]string{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807"},
+				[2]string{"FIELD_UINT_ARRAY_FILE", "0,4294967295"},
+				[2]string{"FIELD_UINT8_ARRAY_FILE", "0,255"},
+				[2]string{"FIELD_UINT16_ARRAY_FILE", "0,65535"},
+				[2]string{"FIELD_UINT32_ARRAY_FILE", "0,4294967295"},
+				[2]string{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
+				[2]string{"FIELD_DURATION_ARRAY_FILE", "90m,120m"},
+				[2]string{"FIELD_URL_ARRAY_FILE", "https://example.com,http://localhost:8080"},
+			},
+			config{},
+			[]Option{Telepresence()},
+			config{
+				unexported:         "",
+				SkipFlag:           "fromFile",
+				SkipFlagEnv:        "fromFile",
+				SkipFlagEnvFile:    "",
+				FieldString:        "content",
 				FieldBool:          true,
 				FieldFloat32:       3.1415,
 				FieldFloat64:       3.14159265359,
@@ -1365,8 +1514,22 @@ func TestPick(t *testing.T) {
 			// Set environment variables
 			for _, env := range tc.envs {
 				err := os.Setenv(env[0], env[1])
-				assert.NoError(t, err)
 				defer os.Unsetenv(env[0])
+				assert.NoError(t, err)
+			}
+
+			// Testing options
+
+			sets := &settings{}
+			for _, opt := range tc.opts {
+				opt.apply(sets)
+			}
+
+			// Testing Telepresence option
+			if sets.checkForTelepresence {
+				err := os.Setenv(telepresenceEnvVar, "/")
+				defer os.Unsetenv(telepresenceEnvVar)
+				assert.NoError(t, err)
 			}
 
 			// Write files
@@ -1379,15 +1542,15 @@ func TestPick(t *testing.T) {
 				err = tmpfile.Close()
 				assert.NoError(t, err)
 				err = os.Setenv(file[0], tmpfile.Name())
-				assert.NoError(t, err)
 				defer os.Unsetenv(file[0])
+				assert.NoError(t, err)
 			}
 
-			err := Pick(&tc.config)
+			err := Pick(&tc.config, tc.opts...)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedConfig, tc.config)
 
-			err = PickAndLog(&tc.config)
+			err = PickAndLog(&tc.config, tc.opts...)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedConfig, tc.config)
 		})

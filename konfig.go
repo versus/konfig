@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -24,6 +25,10 @@ const (
 	fileEnvTag = "fileenv"
 	sepTag     = "sep"
 	skipValue  = "-"
+
+	telepresenceEnvVar = "TELEPRESENCE_ROOT"
+
+	separatorLog = "----------------------------------------------------------------------------------------------------"
 )
 
 // this is used for printing debugging logs
@@ -180,7 +185,7 @@ func getFlagValue(flagName string) string {
  *   - environment variables,
  *   - or configuration files
  */
-func getFieldValue(field, flag, env, fileenv string) string {
+func getFieldValue(field, flag, env, fileenv string, sets *settings) string {
 	var value string
 
 	// First, try reading from flag
@@ -197,12 +202,29 @@ func getFieldValue(field, flag, env, fileenv string) string {
 
 	// Third, try reading from file
 	if value == "" && fileenv != skipValue {
-		filepath := os.Getenv(fileenv)
-		print("[%s] value read from file environment variable %s: %s", field, fileenv, filepath)
+		// Read file environment variable
+		val := os.Getenv(fileenv)
+		print("[%s] value read from file environment variable %s: %s", field, fileenv, val)
 
-		if content, err := ioutil.ReadFile(filepath); err == nil {
-			value = string(content)
-			print("[%s] value read from file %s: %s", field, filepath, value)
+		if val != "" {
+			root := "/"
+
+			// Check for Telepresence
+			// See https://telepresence.io/howto/volumes.html for details
+			if sets.checkForTelepresence {
+				if tr := os.Getenv(telepresenceEnvVar); tr != "" {
+					root = tr
+					print("[%s] telepresence root path: %s", field, tr)
+				}
+			}
+
+			// Read config file
+			file := filepath.Join(root, val)
+			content, err := ioutil.ReadFile(file)
+			if err == nil {
+				value = string(content)
+			}
+			print("[%s] value read from file %s: %s", field, file, value)
 		}
 	}
 
@@ -353,7 +375,15 @@ func urlSlice(strs []string) []url.URL {
 	return urls
 }
 
-func pick(config interface{}) error {
+func pick(config interface{}, opts ...Option) error {
+	// Create settings
+	sets := &settings{}
+	for _, opt := range opts {
+		opt.apply(sets)
+	}
+
+	print("pick options: %s", sets)
+
 	v := reflect.ValueOf(config) // reflect.Value --> v.Type(), v.Kind(), v.NumField()
 	t := reflect.TypeOf(config)  // reflect.Type --> t.Name(), t.Kind(), t.NumField()
 
@@ -383,6 +413,7 @@ func pick(config interface{}) error {
 		}
 
 		name := tField.Name
+		print(separatorLog)
 
 		// `flag:"..."`
 		flagName := tField.Tag.Get(flagTag)
@@ -420,7 +451,7 @@ func pick(config interface{}) error {
 		defaultValue := fmt.Sprintf("%v", vField.Interface())
 		defineFlag(flagName, defaultValue, envName, fileEnvName)
 
-		str := getFieldValue(name, flagName, envName, fileEnvName)
+		str := getFieldValue(name, flagName, envName, fileEnvName, sets)
 		if str == "" {
 			continue
 		}
@@ -558,19 +589,21 @@ func pick(config interface{}) error {
 		}
 	}
 
+	print(separatorLog)
+
 	return nil
 }
 
 // Pick reads values for exported fields of a struct from either command-line flags, environment variables, or configuration files.
 // You can also specify default values.
-func Pick(config interface{}) error {
+func Pick(config interface{}, opts ...Option) error {
 	debug = false
-	return pick(config)
+	return pick(config, opts...)
 }
 
 // PickAndLog is same as Pick, but it also logs debugging information.
 // You can also specify default values.
-func PickAndLog(config interface{}) error {
+func PickAndLog(config interface{}, opts ...Option) error {
 	debug = true
-	return pick(config)
+	return pick(config, opts...)
 }
