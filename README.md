@@ -105,6 +105,41 @@ In the example above, `Database` will be read from either:
   3. The file specified by environment variable `CONFIG_DATABASE_FILE_PATH`
   4. The default value set on struct instance
 
+### Using flag Package
+
+`konfig` plays nice with `flag` package since it does NOT use `flag` package for parsing command-line flags.
+That means you can define, parse, and use your own flags using built-in `flag` package.
+
+If you use `flag` package, `konfig` will also add the command-line flags it is expecting.
+Here is an example:
+
+```go
+package main
+
+import (
+  "flag"
+  "time"
+
+  "github.com/moorara/konfig"
+)
+
+var Config = struct {
+  Enabled   bool
+  LogLevel  string
+} {
+  Enabled:  true,   // default
+  LogLevel: "info", // default
+}
+
+func main() {
+  konfig.Pick(&Config)
+  flag.Parse()
+}
+```
+
+If you run this example with `-help` or `--help` flag,
+you will see `-enabled` and `-log.level` flags are also added with descriptions!
+
 ### Debugging
 
 If you are not sure how your configuration values are going to be read,

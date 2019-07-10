@@ -137,7 +137,7 @@ func defineFlag(flagName, defaultValue, envName, fileEnvName string) {
 		"%s:\t\t\t\t%s\n%s:\t\t\t%s\n%s:\t%s",
 		"default value", defaultValue,
 		"environment variable", envName,
-		"config file environment variable", fileEnvName,
+		"environment variable for file path", fileEnvName,
 	)
 
 	if flag.Lookup(flagName) == nil {
