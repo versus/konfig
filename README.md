@@ -140,6 +140,15 @@ func main() {
 If you run this example with `-help` or `--help` flag,
 you will see `-enabled` and `-log.level` flags are also added with descriptions!
 
+### Options
+
+You can pass a list of options to `Pick` (and `PickAndLog`).
+These options are helpers for specific situations and setups.
+
+For example, `konfig.Telepresence()` option lets you read configuration files
+when running your application in a [Telepresence](https://www.telepresence.io) shell.
+You can read more about _Telepresence_ proxied volumes [here](https://www.telepresence.io/howto/volumes.html).
+
 ### Debugging
 
 If you are not sure how your configuration values are going to be read,
