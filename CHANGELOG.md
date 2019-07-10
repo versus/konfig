@@ -1,5 +1,13 @@
 # Change Log
 
+## [v0.2.1](https://github.com/moorara/konfig/tree/v0.2.1) (2019-07-10)
+[Full Changelog](https://github.com/moorara/konfig/compare/v0.2.0...v0.2.1)
+
+**Merged pull requests:**
+
+- Add Option capability to README [\#8](https://github.com/moorara/konfig/pull/8) ([moorara](https://github.com/moorara))
+- Add Option capability + Telepresence capability [\#7](https://github.com/moorara/konfig/pull/7) ([moorara](https://github.com/moorara))
+
 ## [v0.2.0](https://github.com/moorara/konfig/tree/v0.2.0) (2019-07-10)
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.1.0...v0.2.0)
 
