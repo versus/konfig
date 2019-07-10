@@ -82,7 +82,7 @@ If you want to skip a source for reading values, use `-` as follows:
 
 ```go
 type Config struct {
-  GithubToken string `env:"-" file:"-"`
+  GithubToken string `env:"-" fileenv:"-"`
 }
 ```
 
@@ -94,7 +94,7 @@ You can use Go _struct tags_ to customize the name of expected command-line flag
 
 ```go
 type Config struct {
-  Database string `flag:"config.database" env:"CONFIG_DATABASE" file:"CONFIG_DATABASE_FILE_PATH"`
+  Database string `flag:"config.database" env:"CONFIG_DATABASE" fileenv:"CONFIG_DATABASE_FILE_PATH"`
 }
 ```
 

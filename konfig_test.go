@@ -15,38 +15,38 @@ type config struct {
 	unexported         string
 	SkipFlag           string          `flag:"-"`
 	SkipFlagEnv        string          `flag:"-" env:"-"`
-	SkipFlagEnvFile    string          `flag:"-" env:"-" file:"-"`
-	FieldString        string          // `flag:"field.string" env:"FIELD_STRING" file:"FIELD_STRING_FILE"`
-	FieldBool          bool            // `flag:"field.bool" env:"FIELD_BOOL" file:"FIELD_BOOL_FILE"`
-	FieldFloat32       float32         // `flag:"field.float32" env:"FIELD_FLOAT32" file:"FIELD_FLOAT32_FILE"`
-	FieldFloat64       float64         // `flag:"field.float64" env:"FIELD_FLOAT64" file:"FIELD_FLOAT64_FILE"`
-	FieldInt           int             // `flag:"field.int" env:"FIELD_INT" file:"FIELD_INT_FILE"`
-	FieldInt8          int8            // `flag:"field.int8" env:"FIELD_INT8" file:"FIELD_INT8_FILE"`
-	FieldInt16         int16           // `flag:"field.int16" env:"FIELD_INT16" file:"FIELD_INT16_FILE"`
-	FieldInt32         int32           // `flag:"field.int32" env:"FIELD_INT32" file:"FIELD_INT32_FILE"`
-	FieldInt64         int64           // `flag:"field.int64" env:"FIELD_INT64" file:"FIELD_INT64_FILE"`
-	FieldUint          uint            // `flag:"field.uint" env:"FIELD_UINT" file:"FIELD_UINT_FILE"`
-	FieldUint8         uint8           // `flag:"field.uint8" env:"FIELD_UINT8" file:"FIELD_UINT8_FILE"`
-	FieldUint16        uint16          // `flag:"field.uint16" env:"FIELD_UINT16" file:"FIELD_UINT16_FILE"`
-	FieldUint32        uint32          // `flag:"field.uint32" env:"FIELD_UINT32" file:"FIELD_UINT32_FILE"`
-	FieldUint64        uint64          // `flag:"field.uint64" env:"FIELD_UINT64" file:"FIELD_UINT64_FILE"`
-	FieldDuration      time.Duration   // `flag:"field.duration" env:"FIELD_DURATION" file:"FIELD_DURATION_FILE"`
-	FieldURL           url.URL         // `flag:"field.url" env:"FIELD_URL" file:"FIELD_URL_FILE"`
-	FieldStringArray   []string        // `flag:"field.string.array" env:"FIELD_STRING_ARRAY" file:"FIELD_STRING_ARRAY_FILE" sep:","`
-	FieldFloat32Array  []float32       // `flag:"field.float32.array" env:"FIELD_FLOAT32_ARRAY" file:"FIELD_FLOAT32_ARRAY_FILE" sep:","`
-	FieldFloat64Array  []float64       // `flag:"field.float64.array" env:"FIELD_FLOAT64_ARRAY" file:"FIELD_FLOAT64_ARRAY_FILE" sep:","`
-	FieldIntArray      []int           // `flag:"field.int.array" env:"FIELD_INT_ARRAY" file:"FIELD_INT_ARRAY_FILE" sep:","`
-	FieldInt8Array     []int8          // `flag:"field.int8.array" env:"FIELD_INT8_ARRAY" file:"FIELD_INT8_ARRAY_FILE" sep:","`
-	FieldInt16Array    []int16         // `flag:"field.int16.array" env:"FIELD_INT16_ARRAY" file:"FIELD_INT16_ARRAY_FILE" sep:","`
-	FieldInt32Array    []int32         // `flag:"field.int32.array" env:"FIELD_INT32_ARRAY" file:"FIELD_INT32_ARRAY_FILE" sep:","`
-	FieldInt64Array    []int64         // `flag:"field.int64.array" env:"FIELD_INT64_ARRAY" file:"FIELD_INT64_ARRAY_FILE" sep:","`
-	FieldUintArray     []uint          // `flag:"field.uint.array" env:"FIELD_UINT_ARRAY" file:"FIELD_UINT_ARRAY_FILE" sep:","`
-	FieldUint8Array    []uint8         // `flag:"field.uint8.array" env:"FIELD_UINT8_ARRAY" file:"FIELD_UINT8_ARRAY_FILE" sep:","`
-	FieldUint16Array   []uint16        // `flag:"field.uint16.array" env:"FIELD_UINT16_ARRAY" file:"FIELD_UINT16_ARRAY_FILE" sep:","`
-	FieldUint32Array   []uint32        // `flag:"field.uint32.array" env:"FIELD_UINT32_ARRAY" file:"FIELD_UINT32_ARRAY_FILE" sep:","`
-	FieldUint64Array   []uint64        // `flag:"field.uint64.array" env:"FIELD_UINT64_ARRAY" file:"FIELD_UINT64_ARRAY_FILE" sep:","`
-	FieldDurationArray []time.Duration // `flag:"field.duration.array" env:"FIELD_DURATION_ARRAY" file:"FIELD_DURATION_ARRAY_FILE" sep:","`
-	FieldURLArray      []url.URL       // `flag:"field.url.array" env:"FIELD_URL_ARRAY" file:"FIELD_URL_ARRAY_FILE" sep:","`
+	SkipFlagEnvFile    string          `flag:"-" env:"-" fileenv:"-"`
+	FieldString        string          // `flag:"field.string" env:"FIELD_STRING" fileenv:"FIELD_STRING_FILE"`
+	FieldBool          bool            // `flag:"field.bool" env:"FIELD_BOOL" fileenv:"FIELD_BOOL_FILE"`
+	FieldFloat32       float32         // `flag:"field.float32" env:"FIELD_FLOAT32" fileenv:"FIELD_FLOAT32_FILE"`
+	FieldFloat64       float64         // `flag:"field.float64" env:"FIELD_FLOAT64" fileenv:"FIELD_FLOAT64_FILE"`
+	FieldInt           int             // `flag:"field.int" env:"FIELD_INT" fileenv:"FIELD_INT_FILE"`
+	FieldInt8          int8            // `flag:"field.int8" env:"FIELD_INT8" fileenv:"FIELD_INT8_FILE"`
+	FieldInt16         int16           // `flag:"field.int16" env:"FIELD_INT16" fileenv:"FIELD_INT16_FILE"`
+	FieldInt32         int32           // `flag:"field.int32" env:"FIELD_INT32" fileenv:"FIELD_INT32_FILE"`
+	FieldInt64         int64           // `flag:"field.int64" env:"FIELD_INT64" fileenv:"FIELD_INT64_FILE"`
+	FieldUint          uint            // `flag:"field.uint" env:"FIELD_UINT" fileenv:"FIELD_UINT_FILE"`
+	FieldUint8         uint8           // `flag:"field.uint8" env:"FIELD_UINT8" fileenv:"FIELD_UINT8_FILE"`
+	FieldUint16        uint16          // `flag:"field.uint16" env:"FIELD_UINT16" fileenv:"FIELD_UINT16_FILE"`
+	FieldUint32        uint32          // `flag:"field.uint32" env:"FIELD_UINT32" fileenv:"FIELD_UINT32_FILE"`
+	FieldUint64        uint64          // `flag:"field.uint64" env:"FIELD_UINT64" fileenv:"FIELD_UINT64_FILE"`
+	FieldDuration      time.Duration   // `flag:"field.duration" env:"FIELD_DURATION" fileenv:"FIELD_DURATION_FILE"`
+	FieldURL           url.URL         // `flag:"field.url" env:"FIELD_URL" fileenv:"FIELD_URL_FILE"`
+	FieldStringArray   []string        // `flag:"field.string.array" env:"FIELD_STRING_ARRAY" fileenv:"FIELD_STRING_ARRAY_FILE" sep:","`
+	FieldFloat32Array  []float32       // `flag:"field.float32.array" env:"FIELD_FLOAT32_ARRAY" fileenv:"FIELD_FLOAT32_ARRAY_FILE" sep:","`
+	FieldFloat64Array  []float64       // `flag:"field.float64.array" env:"FIELD_FLOAT64_ARRAY" fileenv:"FIELD_FLOAT64_ARRAY_FILE" sep:","`
+	FieldIntArray      []int           // `flag:"field.int.array" env:"FIELD_INT_ARRAY" fileenv:"FIELD_INT_ARRAY_FILE" sep:","`
+	FieldInt8Array     []int8          // `flag:"field.int8.array" env:"FIELD_INT8_ARRAY" fileenv:"FIELD_INT8_ARRAY_FILE" sep:","`
+	FieldInt16Array    []int16         // `flag:"field.int16.array" env:"FIELD_INT16_ARRAY" fileenv:"FIELD_INT16_ARRAY_FILE" sep:","`
+	FieldInt32Array    []int32         // `flag:"field.int32.array" env:"FIELD_INT32_ARRAY" fileenv:"FIELD_INT32_ARRAY_FILE" sep:","`
+	FieldInt64Array    []int64         // `flag:"field.int64.array" env:"FIELD_INT64_ARRAY" fileenv:"FIELD_INT64_ARRAY_FILE" sep:","`
+	FieldUintArray     []uint          // `flag:"field.uint.array" env:"FIELD_UINT_ARRAY" fileenv:"FIELD_UINT_ARRAY_FILE" sep:","`
+	FieldUint8Array    []uint8         // `flag:"field.uint8.array" env:"FIELD_UINT8_ARRAY" fileenv:"FIELD_UINT8_ARRAY_FILE" sep:","`
+	FieldUint16Array   []uint16        // `flag:"field.uint16.array" env:"FIELD_UINT16_ARRAY" fileenv:"FIELD_UINT16_ARRAY_FILE" sep:","`
+	FieldUint32Array   []uint32        // `flag:"field.uint32.array" env:"FIELD_UINT32_ARRAY" fileenv:"FIELD_UINT32_ARRAY_FILE" sep:","`
+	FieldUint64Array   []uint64        // `flag:"field.uint64.array" env:"FIELD_UINT64_ARRAY" fileenv:"FIELD_UINT64_ARRAY_FILE" sep:","`
+	FieldDurationArray []time.Duration // `flag:"field.duration.array" env:"FIELD_DURATION_ARRAY" fileenv:"FIELD_DURATION_ARRAY_FILE" sep:","`
+	FieldURLArray      []url.URL       // `flag:"field.url.array" env:"FIELD_URL_ARRAY" fileenv:"FIELD_URL_ARRAY_FILE" sep:","`
 }
 
 func TestTokenize(t *testing.T) {
@@ -117,8 +117,8 @@ func TestGetEnvVarName(t *testing.T) {
 
 func TestGetFileVarName(t *testing.T) {
 	tests := []struct {
-		fieldName           string
-		expectedFileVarName string
+		fieldName              string
+		expectedFileEnvVarName string
 	}{
 		{"c", "C_FILE"},
 		{"C", "C_FILE"},
@@ -132,8 +132,8 @@ func TestGetFileVarName(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		fileVarName := getFileVarName(tc.fieldName)
-		assert.Equal(t, tc.expectedFileVarName, fileVarName)
+		fileEnvVarName := getFileEnvVarName(tc.fieldName)
+		assert.Equal(t, tc.expectedFileEnvVarName, fileEnvVarName)
 	}
 }
 

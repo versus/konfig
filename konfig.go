@@ -1,3 +1,5 @@
+// Package konfig is a minimal and unopinionated library for reading configuration values in Go applications
+// based on [The 12-Factor App](https://12factor.net/config).
 package konfig
 
 import (
@@ -17,11 +19,11 @@ import (
 )
 
 const (
-	flagTag   = "flag"
-	envTag    = "env"
-	fileTag   = "file"
-	sepTag    = "sep"
-	skipValue = "-"
+	flagTag    = "flag"
+	envTag     = "env"
+	fileEnvTag = "fileenv"
+	sepTag     = "sep"
+	skipValue  = "-"
 )
 
 // this is used for printing debugging logs
@@ -116,7 +118,7 @@ func getEnvVarName(name string) string {
  *   UserID       -->  USER_ID_FILE
  *   DatabaseURL  -->  DATABASE_URL_FILE
  */
-func getFileVarName(name string) string {
+func getFileEnvVarName(name string) string {
 	parts := tokenize(name)
 	result := strings.Join(parts, "_")
 	result = strings.ToUpper(result)
@@ -126,7 +128,7 @@ func getFileVarName(name string) string {
 }
 
 // defineFlag registers a flag name, so it will show up in the help description.
-func defineFlag(flagName, defaultValue, envName, fileName string) {
+func defineFlag(flagName, defaultValue, envName, fileEnvName string) {
 	if flagName == skipValue {
 		return
 	}
@@ -135,7 +137,7 @@ func defineFlag(flagName, defaultValue, envName, fileName string) {
 		"%s:\t\t\t\t%s\n%s:\t\t\t%s\n%s:\t%s",
 		"default value", defaultValue,
 		"environment variable", envName,
-		"config file environment variable", fileName,
+		"config file environment variable", fileEnvName,
 	)
 
 	if flag.Lookup(flagName) == nil {
@@ -178,7 +180,7 @@ func getFlagValue(flagName string) string {
  *   - environment variables,
  *   - or configuration files
  */
-func getFieldValue(field, flag, env, file string) string {
+func getFieldValue(field, flag, env, fileenv string) string {
 	var value string
 
 	// First, try reading from flag
@@ -194,9 +196,9 @@ func getFieldValue(field, flag, env, file string) string {
 	}
 
 	// Third, try reading from file
-	if value == "" && file != skipValue {
-		filepath := os.Getenv(file)
-		print("[%s] value read from file environment variable %s: %s", field, file, filepath)
+	if value == "" && fileenv != skipValue {
+		filepath := os.Getenv(fileenv)
+		print("[%s] value read from file environment variable %s: %s", field, fileenv, filepath)
 
 		if content, err := ioutil.ReadFile(filepath); err == nil {
 			value = string(content)
@@ -399,12 +401,12 @@ func pick(config interface{}) error {
 		print("[%s] expecting environment variable name: %s", name, envName)
 
 		// `file:"..."`
-		fileName := tField.Tag.Get(fileTag)
-		if fileName == "" {
-			fileName = getFileVarName(name)
+		fileEnvName := tField.Tag.Get(fileEnvTag)
+		if fileEnvName == "" {
+			fileEnvName = getFileEnvVarName(name)
 		}
 
-		print("[%s] expecting file environment variable name: %s", name, fileName)
+		print("[%s] expecting file environment variable name: %s", name, fileEnvName)
 
 		// `sep:"..."`
 		sep := tField.Tag.Get(sepTag)
@@ -416,9 +418,9 @@ func pick(config interface{}) error {
 
 		// Define a flag for the field so flag.Parse() can be called
 		defaultValue := fmt.Sprintf("%v", vField.Interface())
-		defineFlag(flagName, defaultValue, envName, fileName)
+		defineFlag(flagName, defaultValue, envName, fileEnvName)
 
-		str := getFieldValue(name, flagName, envName, fileName)
+		str := getFieldValue(name, flagName, envName, fileEnvName)
 		if str == "" {
 			continue
 		}
