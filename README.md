@@ -39,6 +39,8 @@ func main() {
 }
 ```
 
+## Documentation
+
 The precedence of sources for reading values is as follows:
 
   1. command-line flags
@@ -105,6 +107,16 @@ In the example above, `Database` will be read from either:
   3. The file specified by environment variable `CONFIG_DATABASE_FILE_PATH`
   4. The default value set on struct instance
 
+### Options
+
+You can pass a list of options to `Pick`.
+These options are helpers for specific situations and setups.
+
+| Option                  | Description                                                 | Example                                                          |
+|-------------------------|-------------------------------------------------------------|------------------------------------------------------------------|
+| `konfig.Debug()`        | Printing debugging information                              | [Debugging](https://milad.dev/projects/konfig/#debugging)        |
+| `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [Telepresence](https://milad.dev/posts/telepresence-with-konfig) |
+
 ### Using flag Package
 
 `konfig` plays nice with `flag` package since it does NOT use `flag` package for parsing command-line flags.
@@ -139,17 +151,3 @@ func main() {
 
 If you run this example with `-help` or `--help` flag,
 you will see `-enabled` and `-log.level` flags are also added with descriptions!
-
-### Options
-
-You can pass a list of options to `Pick` (and `PickAndLog`).
-These options are helpers for specific situations and setups.
-
-For example, `konfig.Telepresence()` option lets you read configuration files
-when running your application in a [Telepresence](https://www.telepresence.io) shell.
-You can read more about _Telepresence_ proxied volumes [here](https://www.telepresence.io/howto/volumes.html).
-
-### Debugging
-
-If you are not sure how your configuration values are going to be read,
-or they are not read as expected, you can use `PickAndLog` for debugging purposes.

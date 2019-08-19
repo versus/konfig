@@ -6,4 +6,4 @@ and [**pull requests**](https://github.com/moorara/konfig/pulls).
 ## Versioning
 
 **konfig** uses [semantic versioning](https://semver.org).
-and all features and fixes are merged to `master` branch.
+All features and fixes are merged to `master` branch.
