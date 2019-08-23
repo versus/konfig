@@ -51,6 +51,13 @@ type config struct {
 	FieldURLArray      []url.URL       // `flag:"field.url.array" env:"FIELD_URL_ARRAY" fileenv:"FIELD_URL_ARRAY_FILE" sep:","`
 }
 
+func TestDefaultOptions(t *testing.T) {
+	o := defaultOptions()
+
+	assert.False(t, o.debug)
+	assert.False(t, o.telepresence)
+}
+
 func TestDebug(t *testing.T) {
 	tests := []struct {
 		options         *options
@@ -91,13 +98,6 @@ func TestTelepresence(t *testing.T) {
 
 		assert.Equal(t, tc.expectedOptions, tc.options)
 	}
-}
-
-func TestDefaultOptions(t *testing.T) {
-	o := defaultOptions()
-
-	assert.False(t, o.debug)
-	assert.False(t, o.telepresence)
 }
 
 func TestOptionsString(t *testing.T) {
@@ -175,113 +175,123 @@ func TestPrint(t *testing.T) {
 }
 
 func TestGetFieldValue(t *testing.T) {
+	type env struct {
+		varName string
+		value   string
+	}
+
+	type file struct {
+		varName string
+		value   string
+	}
+
 	tests := []struct {
 		name                   string
 		args                   []string
-		envConfig              [2]string
-		fileConfig             [2]string
+		envConfig              env
+		fileConfig             file
 		field, flag, env, file string
-		o                      *options
+		o                      options
 		expectedValue          string
 		expectedFromFile       bool
 	}{
 		{
 			"SkipFlag",
 			[]string{"/path/to/executable", "-log.level=debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "-", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"info",
 			false,
 		},
 		{
 			"SkipFlagAndEnv",
 			[]string{"/path/to/executable", "-log.level=debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "-", "-", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"error",
 			true,
 		},
 		{
 			"SkipFlagAndEnvAndFile",
 			[]string{"/path/to/executable", "-log.level=debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "-", "-", "-",
-			&options{},
+			options{},
 			"",
 			false,
 		},
 		{
 			"FromFlag",
 			[]string{"/path/to/executable", "-log.level=debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"debug",
 			false,
 		},
 		{
 			"FromFlag",
 			[]string{"/path/to/executable", "--log.level=debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"debug",
 			false,
 		},
 		{
 			"FromFlag",
 			[]string{"/path/to/executable", "-log.level", "debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"debug",
 			false,
 		},
 		{
 			"FromFlag",
 			[]string{"/path/to/executable", "--log.level", "debug"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"debug",
 			false,
 		},
 		{
 			"FromEnvironmentVariable",
 			[]string{"/path/to/executable"},
-			[2]string{"LOG_LEVEL", "info"},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", "info"},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"info",
 			false,
 		},
 		{
 			"FromFiles",
 			[]string{"/path/to/executable"},
-			[2]string{"LOG_LEVEL", ""},
-			[2]string{"LOG_LEVEL_FILE", "error"},
+			env{"LOG_LEVEL", ""},
+			file{"LOG_LEVEL_FILE", "error"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{},
+			options{},
 			"error",
 			true,
 		},
 		{
 			"FromFilesWithTelepresenceOption",
 			[]string{"/path/to/executable"},
-			[2]string{"LOG_LEVEL", ""},
-			[2]string{"LOG_LEVEL_FILE", "info"},
+			env{"LOG_LEVEL", ""},
+			file{"LOG_LEVEL_FILE", "info"},
 			"Field", "log.level", "LOG_LEVEL", "LOG_LEVEL_FILE",
-			&options{telepresence: true},
+			options{telepresence: true},
 			"info",
 			true,
 		},
@@ -298,28 +308,34 @@ func TestGetFieldValue(t *testing.T) {
 			os.Args = tc.args
 
 			// Set value in an environment variable
-			err := os.Setenv(tc.envConfig[0], tc.envConfig[1])
-			defer os.Unsetenv(tc.envConfig[0])
+			err := os.Setenv(tc.envConfig.varName, tc.envConfig.value)
 			assert.NoError(t, err)
+			defer os.Unsetenv(tc.envConfig.varName)
 
 			// Testing Telepresence option
 			if tc.o.telepresence {
 				err := os.Setenv(telepresenceEnvVar, "/")
-				defer os.Unsetenv(telepresenceEnvVar)
 				assert.NoError(t, err)
+				defer os.Unsetenv(telepresenceEnvVar)
 			}
 
-			// Write value in a temporary file
+			// Write value in a temporary config file
+
 			tmpfile, err := ioutil.TempFile("", "gotest_")
 			assert.NoError(t, err)
 			defer os.Remove(tmpfile.Name())
-			_, err = tmpfile.WriteString(tc.fileConfig[1])
+
+			_, err = tmpfile.WriteString(tc.fileConfig.value)
 			assert.NoError(t, err)
+
 			err = tmpfile.Close()
 			assert.NoError(t, err)
-			err = os.Setenv(tc.fileConfig[0], tmpfile.Name())
-			defer os.Unsetenv(tc.fileConfig[0])
+
+			err = os.Setenv(tc.fileConfig.varName, tmpfile.Name())
 			assert.NoError(t, err)
+			defer os.Unsetenv(tc.fileConfig.varName)
+
+			// Verify
 
 			value, fromFile := tc.o.getFieldValue(tc.field, tc.flag, tc.env, tc.file)
 			assert.Equal(t, tc.expectedValue, value)
@@ -1547,33 +1563,29 @@ func TestPickError(t *testing.T) {
 }
 
 func TestPick(t *testing.T) {
-	d90m := 90 * time.Minute
-	d120m := 120 * time.Minute
-	exampleURL, _ := url.Parse("example.com")
-	localhostURL, _ := url.Parse("localhost:8080")
-
-	watchInterval := 50 * time.Millisecond
-
 	type env struct {
 		varName string
 		value   string
 	}
 
 	type file struct {
-		varName      string
-		initialValue string
-		newValue     string
+		varName string
+		value   string
 	}
 
+	d90m := 90 * time.Minute
+	d120m := 120 * time.Minute
+	service1URL, _ := url.Parse("service-1:8080")
+	service2URL, _ := url.Parse("service-2:8080")
+
 	tests := []struct {
-		name               string
-		args               []string
-		envs               []env
-		files              []file
-		config             config
-		opts               []Option
-		expectedInitConfig config
-		expectedNextConfig config
+		name           string
+		args           []string
+		envs           []env
+		files          []file
+		config         config
+		opts           []Option
+		expectedConfig config
 	}{
 		{
 			"Empty",
@@ -1582,7 +1594,6 @@ func TestPick(t *testing.T) {
 			[]file{},
 			config{},
 			nil,
-			config{},
 			config{},
 		},
 		{
@@ -1610,7 +1621,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -1626,7 +1637,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 			nil,
 			config{
@@ -1649,7 +1660,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -1665,45 +1676,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "internal",
-				SkipFlag:           "default",
-				SkipFlagEnv:        "default",
-				SkipFlagEnvFile:    "default",
-				FieldString:        "default",
-				FieldBool:          false,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -1725,7 +1698,7 @@ func TestPick(t *testing.T) {
 				"-field.uint32", "4294967295",
 				"-field.uint64", "18446744073709551615",
 				"-field.duration", "90m",
-				"-field.url", "localhost:8080",
+				"-field.url", "service-1:8080",
 				"-field.string.array", "milad,mona",
 				"-field.bool.array", "false,true",
 				"-field.float32.array", "3.1415,2.7182",
@@ -1741,7 +1714,7 @@ func TestPick(t *testing.T) {
 				"-field.uint32.array", "0,4294967295",
 				"-field.uint64.array", "0,18446744073709551615",
 				"-field.duration.array", "90m,120m",
-				"-field.url.array", "example.com,localhost:8080",
+				"-field.url.array", "service-1:8080,service-2:8080",
 			},
 			[]env{},
 			[]file{},
@@ -1767,7 +1740,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -1783,45 +1756,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "",
-				SkipFlagEnv:        "",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -1843,7 +1778,7 @@ func TestPick(t *testing.T) {
 				"--field.uint32", "4294967295",
 				"--field.uint64", "18446744073709551615",
 				"--field.duration", "90m",
-				"--field.url", "localhost:8080",
+				"--field.url", "service-1:8080",
 				"--field.string.array", "milad,mona",
 				"--field.bool.array", "false,true",
 				"--field.float32.array", "3.1415,2.7182",
@@ -1859,7 +1794,7 @@ func TestPick(t *testing.T) {
 				"--field.uint32.array", "0,4294967295",
 				"--field.uint64.array", "0,18446744073709551615",
 				"--field.duration.array", "90m,120m",
-				"--field.url.array", "example.com,localhost:8080",
+				"--field.url.array", "service-1:8080,service-2:8080",
 			},
 			[]env{},
 			[]file{},
@@ -1885,7 +1820,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -1901,45 +1836,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "",
-				SkipFlagEnv:        "",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -1961,7 +1858,7 @@ func TestPick(t *testing.T) {
 				"-field.uint32=4294967295",
 				"-field.uint64=18446744073709551615",
 				"-field.duration=90m",
-				"-field.url=localhost:8080",
+				"-field.url=service-1:8080",
 				"-field.string.array=milad,mona",
 				"-field.bool.array=false,true",
 				"-field.float32.array=3.1415,2.7182",
@@ -1977,7 +1874,7 @@ func TestPick(t *testing.T) {
 				"-field.uint32.array=0,4294967295",
 				"-field.uint64.array=0,18446744073709551615",
 				"-field.duration.array=90m,120m",
-				"-field.url.array=example.com,localhost:8080",
+				"-field.url.array=service-1:8080,service-2:8080",
 			},
 			[]env{},
 			[]file{},
@@ -2003,7 +1900,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -2019,45 +1916,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "",
-				SkipFlagEnv:        "",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -2079,7 +1938,7 @@ func TestPick(t *testing.T) {
 				"--field.uint32=4294967295",
 				"--field.uint64=18446744073709551615",
 				"--field.duration=90m",
-				"--field.url=localhost:8080",
+				"--field.url=service-1:8080",
 				"--field.string.array=milad,mona",
 				"--field.bool.array=false,true",
 				"--field.float32.array=3.1415,2.7182",
@@ -2095,7 +1954,7 @@ func TestPick(t *testing.T) {
 				"--field.uint32.array=0,4294967295",
 				"--field.uint64.array=0,18446744073709551615",
 				"--field.duration.array=90m,120m",
-				"--field.url.array=example.com,localhost:8080",
+				"--field.url.array=service-1:8080,service-2:8080",
 			},
 			[]env{},
 			[]file{},
@@ -2121,7 +1980,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -2137,45 +1996,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "",
-				SkipFlagEnv:        "",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -2200,7 +2021,7 @@ func TestPick(t *testing.T) {
 				{"FIELD_UINT32", "4294967295"},
 				{"FIELD_UINT64", "18446744073709551615"},
 				{"FIELD_DURATION", "90m"},
-				{"FIELD_URL", "localhost:8080"},
+				{"FIELD_URL", "service-1:8080"},
 				{"FIELD_STRING_ARRAY", "milad,mona"},
 				{"FIELD_BOOL_ARRAY", "false,true"},
 				{"FIELD_FLOAT32_ARRAY", "3.1415,2.7182"},
@@ -2216,7 +2037,7 @@ func TestPick(t *testing.T) {
 				{"FIELD_UINT32_ARRAY", "0,4294967295"},
 				{"FIELD_UINT64_ARRAY", "0,18446744073709551615"},
 				{"FIELD_DURATION_ARRAY", "90m,120m"},
-				{"FIELD_URL_ARRAY", "example.com,localhost:8080"},
+				{"FIELD_URL_ARRAY", "service-1:8080,service-2:8080"},
 			},
 			[]file{},
 			config{},
@@ -2241,7 +2062,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -2257,45 +2078,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "from_env",
-				SkipFlagEnv:        "",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -2303,41 +2086,41 @@ func TestPick(t *testing.T) {
 			[]string{"path/to/binary"},
 			[]env{},
 			[]file{
-				{"SKIP_FLAG_FILE", "from_file", ""},
-				{"SKIP_FLAG_ENV_FILE", "from_file", ""},
-				{"SKIP_FLAG_ENV_FILE_FILE", "from_file", ""},
-				{"FIELD_STRING_FILE", "content", ""},
-				{"FIELD_BOOL_FILE", "true", ""},
-				{"FIELD_FLOAT32_FILE", "3.1415", ""},
-				{"FIELD_FLOAT64_FILE", "3.14159265359", ""},
-				{"FIELD_INT_FILE", "-2147483648", ""},
-				{"FIELD_INT8_FILE", "-128", ""},
-				{"FIELD_INT16_FILE", "-32768", ""},
-				{"FIELD_INT32_FILE", "-2147483648", ""},
-				{"FIELD_INT64_FILE", "-9223372036854775808", ""},
-				{"FIELD_UINT_FILE", "4294967295", ""},
-				{"FIELD_UINT8_FILE", "255", ""},
-				{"FIELD_UINT16_FILE", "65535", ""},
-				{"FIELD_UINT32_FILE", "4294967295", ""},
-				{"FIELD_UINT64_FILE", "18446744073709551615", ""},
-				{"FIELD_DURATION_FILE", "90m", ""},
-				{"FIELD_URL_FILE", "localhost:8080", ""},
-				{"FIELD_STRING_ARRAY_FILE", "milad,mona", ""},
-				{"FIELD_BOOL_ARRAY_FILE", "false,true", ""},
-				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182", ""},
-				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845", ""},
-				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647", ""},
-				{"FIELD_INT8_ARRAY_FILE", "-128,127", ""},
-				{"FIELD_INT16_ARRAY_FILE", "-32768,32767", ""},
-				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647", ""},
-				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807", ""},
-				{"FIELD_UINT_ARRAY_FILE", "0,4294967295", ""},
-				{"FIELD_UINT8_ARRAY_FILE", "0,255", ""},
-				{"FIELD_UINT16_ARRAY_FILE", "0,65535", ""},
-				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295", ""},
-				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615", ""},
-				{"FIELD_DURATION_ARRAY_FILE", "90m,120m", ""},
-				{"FIELD_URL_ARRAY_FILE", "example.com,localhost:8080", ""},
+				{"SKIP_FLAG_FILE", "from_file"},
+				{"SKIP_FLAG_ENV_FILE", "from_file"},
+				{"SKIP_FLAG_ENV_FILE_FILE", "from_file"},
+				{"FIELD_STRING_FILE", "content"},
+				{"FIELD_BOOL_FILE", "true"},
+				{"FIELD_FLOAT32_FILE", "3.1415"},
+				{"FIELD_FLOAT64_FILE", "3.14159265359"},
+				{"FIELD_INT_FILE", "-2147483648"},
+				{"FIELD_INT8_FILE", "-128"},
+				{"FIELD_INT16_FILE", "-32768"},
+				{"FIELD_INT32_FILE", "-2147483648"},
+				{"FIELD_INT64_FILE", "-9223372036854775808"},
+				{"FIELD_UINT_FILE", "4294967295"},
+				{"FIELD_UINT8_FILE", "255"},
+				{"FIELD_UINT16_FILE", "65535"},
+				{"FIELD_UINT32_FILE", "4294967295"},
+				{"FIELD_UINT64_FILE", "18446744073709551615"},
+				{"FIELD_DURATION_FILE", "90m"},
+				{"FIELD_URL_FILE", "service-1:8080"},
+				{"FIELD_STRING_ARRAY_FILE", "milad,mona"},
+				{"FIELD_BOOL_ARRAY_FILE", "false,true"},
+				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182"},
+				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845"},
+				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647"},
+				{"FIELD_INT8_ARRAY_FILE", "-128,127"},
+				{"FIELD_INT16_ARRAY_FILE", "-32768,32767"},
+				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647"},
+				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807"},
+				{"FIELD_UINT_ARRAY_FILE", "0,4294967295"},
+				{"FIELD_UINT8_ARRAY_FILE", "0,255"},
+				{"FIELD_UINT16_ARRAY_FILE", "0,65535"},
+				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295"},
+				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
+				{"FIELD_DURATION_ARRAY_FILE", "90m,120m"},
+				{"FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080"},
 			},
 			config{},
 			nil,
@@ -2361,7 +2144,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -2377,45 +2160,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "from_file",
-				SkipFlagEnv:        "from_file",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
@@ -2443,19 +2188,19 @@ func TestPick(t *testing.T) {
 				{"FIELD_INT64_ARRAY", "-9223372036854775808,9223372036854775807"},
 			},
 			[]file{
-				{"SKIP_FLAG_FILE", "from_file", ""},
-				{"SKIP_FLAG_ENV_FILE", "from_file", ""},
-				{"SKIP_FLAG_ENV_FILE_FILE", "from_file", ""},
-				{"FIELD_UINT_FILE", "4294967295", ""},
-				{"FIELD_UINT8_FILE", "255", ""},
-				{"FIELD_UINT16_FILE", "65535", ""},
-				{"FIELD_UINT32_FILE", "4294967295", ""},
-				{"FIELD_UINT64_FILE", "18446744073709551615", ""},
-				{"FIELD_UINT_ARRAY_FILE", "0,4294967295", ""},
-				{"FIELD_UINT8_ARRAY_FILE", "0,255", ""},
-				{"FIELD_UINT16_ARRAY_FILE", "0,65535", ""},
-				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295", ""},
-				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615", ""},
+				{"SKIP_FLAG_FILE", "from_file"},
+				{"SKIP_FLAG_ENV_FILE", "from_file"},
+				{"SKIP_FLAG_ENV_FILE_FILE", "from_file"},
+				{"FIELD_UINT_FILE", "4294967295"},
+				{"FIELD_UINT8_FILE", "255"},
+				{"FIELD_UINT16_FILE", "65535"},
+				{"FIELD_UINT32_FILE", "4294967295"},
+				{"FIELD_UINT64_FILE", "18446744073709551615"},
+				{"FIELD_UINT_ARRAY_FILE", "0,4294967295"},
+				{"FIELD_UINT8_ARRAY_FILE", "0,255"},
+				{"FIELD_UINT16_ARRAY_FILE", "0,65535"},
+				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295"},
+				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
 			},
 			config{
 				FieldString:        "default",
@@ -2464,8 +2209,8 @@ func TestPick(t *testing.T) {
 				FieldBoolArray:     []bool{false, true},
 				FieldDuration:      d90m,
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURL:           *localhostURL,
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURL:           *service1URL,
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 			nil,
 			config{
@@ -2488,7 +2233,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -2504,87 +2249,49 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "from_env",
-				SkipFlagEnv:        "from_file",
-				SkipFlagEnvFile:    "",
-				FieldString:        "default",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 		{
-			"AllFromFromFilesWithTelepresenceOption",
+			"WithTelepresenceOption",
 			[]string{"path/to/binary"},
 			[]env{},
 			[]file{
-				{"SKIP_FLAG_FILE", "from_file", ""},
-				{"SKIP_FLAG_ENV_FILE", "from_file", ""},
-				{"SKIP_FLAG_ENV_FILE_FILE", "from_file", ""},
-				{"FIELD_STRING_FILE", "content", ""},
-				{"FIELD_BOOL_FILE", "true", ""},
-				{"FIELD_FLOAT32_FILE", "3.1415", ""},
-				{"FIELD_FLOAT64_FILE", "3.14159265359", ""},
-				{"FIELD_INT_FILE", "-2147483648", ""},
-				{"FIELD_INT8_FILE", "-128", ""},
-				{"FIELD_INT16_FILE", "-32768", ""},
-				{"FIELD_INT32_FILE", "-2147483648", ""},
-				{"FIELD_INT64_FILE", "-9223372036854775808", ""},
-				{"FIELD_UINT_FILE", "4294967295", ""},
-				{"FIELD_UINT8_FILE", "255", ""},
-				{"FIELD_UINT16_FILE", "65535", ""},
-				{"FIELD_UINT32_FILE", "4294967295", ""},
-				{"FIELD_UINT64_FILE", "18446744073709551615", ""},
-				{"FIELD_DURATION_FILE", "90m", ""},
-				{"FIELD_URL_FILE", "localhost:8080", ""},
-				{"FIELD_STRING_ARRAY_FILE", "milad,mona", ""},
-				{"FIELD_BOOL_ARRAY_FILE", "false,true", ""},
-				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182", ""},
-				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845", ""},
-				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647", ""},
-				{"FIELD_INT8_ARRAY_FILE", "-128,127", ""},
-				{"FIELD_INT16_ARRAY_FILE", "-32768,32767", ""},
-				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647", ""},
-				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807", ""},
-				{"FIELD_UINT_ARRAY_FILE", "0,4294967295", ""},
-				{"FIELD_UINT8_ARRAY_FILE", "0,255", ""},
-				{"FIELD_UINT16_ARRAY_FILE", "0,65535", ""},
-				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295", ""},
-				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615", ""},
-				{"FIELD_DURATION_ARRAY_FILE", "90m,120m", ""},
-				{"FIELD_URL_ARRAY_FILE", "example.com,localhost:8080", ""},
+				{"SKIP_FLAG_FILE", "from_file"},
+				{"SKIP_FLAG_ENV_FILE", "from_file"},
+				{"SKIP_FLAG_ENV_FILE_FILE", "from_file"},
+				{"FIELD_STRING_FILE", "content"},
+				{"FIELD_BOOL_FILE", "true"},
+				{"FIELD_FLOAT32_FILE", "3.1415"},
+				{"FIELD_FLOAT64_FILE", "3.14159265359"},
+				{"FIELD_INT_FILE", "-2147483648"},
+				{"FIELD_INT8_FILE", "-128"},
+				{"FIELD_INT16_FILE", "-32768"},
+				{"FIELD_INT32_FILE", "-2147483648"},
+				{"FIELD_INT64_FILE", "-9223372036854775808"},
+				{"FIELD_UINT_FILE", "4294967295"},
+				{"FIELD_UINT8_FILE", "255"},
+				{"FIELD_UINT16_FILE", "65535"},
+				{"FIELD_UINT32_FILE", "4294967295"},
+				{"FIELD_UINT64_FILE", "18446744073709551615"},
+				{"FIELD_DURATION_FILE", "90m"},
+				{"FIELD_URL_FILE", "service-1:8080"},
+				{"FIELD_STRING_ARRAY_FILE", "milad,mona"},
+				{"FIELD_BOOL_ARRAY_FILE", "false,true"},
+				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182"},
+				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845"},
+				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647"},
+				{"FIELD_INT8_ARRAY_FILE", "-128,127"},
+				{"FIELD_INT16_ARRAY_FILE", "-32768,32767"},
+				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647"},
+				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807"},
+				{"FIELD_UINT_ARRAY_FILE", "0,4294967295"},
+				{"FIELD_UINT8_ARRAY_FILE", "0,255"},
+				{"FIELD_UINT16_ARRAY_FILE", "0,65535"},
+				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295"},
+				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
+				{"FIELD_DURATION_ARRAY_FILE", "90m,120m"},
+				{"FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080"},
 			},
 			config{},
 			[]Option{
@@ -2610,7 +2317,7 @@ func TestPick(t *testing.T) {
 				FieldUint32:        4294967295,
 				FieldUint64:        18446744073709551615,
 				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
+				FieldURL:           *service1URL,
 				FieldStringArray:   []string{"milad", "mona"},
 				FieldBoolArray:     []bool{false, true},
 				FieldFloat32Array:  []float32{3.1415, 2.7182},
@@ -2626,45 +2333,7 @@ func TestPick(t *testing.T) {
 				FieldUint32Array:   []uint32{0, 4294967295},
 				FieldUint64Array:   []uint64{0, 18446744073709551615},
 				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
-			},
-			config{
-				unexported:         "",
-				SkipFlag:           "from_file",
-				SkipFlagEnv:        "from_file",
-				SkipFlagEnvFile:    "",
-				FieldString:        "content",
-				FieldBool:          true,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      d90m,
-				FieldURL:           *localhostURL,
-				FieldStringArray:   []string{"milad", "mona"},
-				FieldBoolArray:     []bool{false, true},
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: []time.Duration{d90m, d120m},
-				FieldURLArray:      []url.URL{*exampleURL, *localhostURL},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
 		},
 	}
@@ -2681,8 +2350,8 @@ func TestPick(t *testing.T) {
 			// Set environment variables
 			for _, e := range tc.envs {
 				err := os.Setenv(e.varName, e.value)
-				defer os.Unsetenv(e.varName)
 				assert.NoError(t, err)
+				defer os.Unsetenv(e.varName)
 			}
 
 			o := defaultOptions()
@@ -2693,11 +2362,9 @@ func TestPick(t *testing.T) {
 			// Testing Telepresence option
 			if o.telepresence {
 				err := os.Setenv(telepresenceEnvVar, "/")
-				defer os.Unsetenv(telepresenceEnvVar)
 				assert.NoError(t, err)
+				defer os.Unsetenv(telepresenceEnvVar)
 			}
-
-			done := make(chan bool, len(tc.files))
 
 			// Write configuration files
 			for _, f := range tc.files {
@@ -2705,36 +2372,20 @@ func TestPick(t *testing.T) {
 				assert.NoError(t, err)
 				defer os.Remove(tmpfile.Name())
 
-				err = os.Setenv(f.varName, tmpfile.Name())
-				defer os.Unsetenv(f.varName)
-				assert.NoError(t, err)
-
-				_, err = tmpfile.WriteString(f.initialValue)
+				_, err = tmpfile.WriteString(f.value)
 				assert.NoError(t, err)
 
 				err = tmpfile.Close()
 				assert.NoError(t, err)
 
-				newValue := f.newValue
-				time.AfterFunc(watchInterval/2, func() {
-					err := ioutil.WriteFile(tmpfile.Name(), []byte(newValue), 0644)
-					assert.NoError(t, err)
-					done <- true
-				})
+				err = os.Setenv(f.varName, tmpfile.Name())
+				assert.NoError(t, err)
+				defer os.Unsetenv(f.varName)
 			}
 
 			err := Pick(&tc.config, tc.opts...)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedInitConfig, tc.config)
-
-			// Wait for all go routines to finish
-			for range tc.files {
-				<-done
-			}
-
-			// Verify the new configurations read from files
-			time.Sleep(watchInterval)
-			assert.Equal(t, tc.expectedNextConfig, tc.config)
+			assert.Equal(t, tc.expectedConfig, tc.config)
 		})
 	}
 

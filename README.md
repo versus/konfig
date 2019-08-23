@@ -112,9 +112,9 @@ In the example above, `Database` will be read from either:
 You can pass a list of options to `Pick`.
 These options are helpers for specific situations and setups.
 
-| Option                  | Description                                                 | Example                                                          |
-|-------------------------|-------------------------------------------------------------|------------------------------------------------------------------|
-| `konfig.Debug()`        | Printing debugging information                              | [Debugging](https://milad.dev/projects/konfig/#debugging)        |
+| Option | Description | Example |
+|--------|-------------|---------|
+| `konfig.Debug()` | Printing debugging information | [Debugging](https://milad.dev/projects/konfig/#debugging) |
 | `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [Telepresence](https://milad.dev/posts/telepresence-with-konfig) |
 
 ### Using flag Package

@@ -28,6 +28,20 @@ const (
 	separatorLog = "----------------------------------------------------------------------------------------------------"
 )
 
+// options contains all the options
+type options struct {
+	debug        bool
+	telepresence bool
+}
+
+// defaultOptions creates options with default values
+func defaultOptions() *options {
+	return &options{
+		debug:        false,
+		telepresence: false,
+	}
+}
+
 // Option configures how configuration values are read
 type Option interface {
 	apply(*options)
@@ -65,34 +79,20 @@ func Telepresence() Option {
 	})
 }
 
-// options contains all the options
-type options struct {
-	debug        bool
-	telepresence bool
-}
-
-// defaultOptions creates options with default values
-func defaultOptions() *options {
-	return &options{
-		debug:        false,
-		telepresence: false,
-	}
-}
-
 // String is used for printing debugging information.
 // The output should fit in one line.
 func (o options) String() string {
-	opts := []string{}
+	strs := []string{}
 
 	if o.debug {
-		opts = append(opts, "Debug")
+		strs = append(strs, "Debug")
 	}
 
 	if o.telepresence {
-		opts = append(opts, "Telepresence")
+		strs = append(strs, "Telepresence")
 	}
 
-	return strings.Join(opts, " + ")
+	return strings.Join(strs, " + ")
 }
 
 func (o *options) print(msg string, args ...interface{}) {
@@ -106,7 +106,7 @@ func (o *options) print(msg string, args ...interface{}) {
  *   - command-line flags,
  *   - environment variables,
  *   - or configuration files
- * If the value is read from a configuration file, the second return will be true.
+ * If the value is read from a file, the second returned value will be true.
  */
 func (o *options) getFieldValue(field, flag, env, fileenv string) (string, bool) {
 	var value string
@@ -516,8 +516,9 @@ func (o *options) read(config interface{}) error {
 		defineFlag(flagName, defaultValue, envName, fileEnvName)
 
 		// Try reading the configuration value for current field
-		// If no value, skip this field
 		str, _ := o.getFieldValue(name, flagName, envName, fileEnvName)
+
+		// If no value, skip this field
 		if str == "" {
 			continue
 		}
