@@ -6,6 +6,7 @@ in Go applications based on [The 12-Factor App](https://12factor.net/config).
 The idea is that you just define a `struct` with _fields_, _types_, and _defaults_,
 then you just use this library to read and populate the values for fields of your struct
 from either **command-line flags**, **environment variables**, or **configuration files**.
+It can also watch for new values read from _configuration files_ and notify subscribers.
 
 This library does not use `flag` package for parsing flags, so you can still parse your flags separately.
 
@@ -107,16 +108,6 @@ In the example above, `Database` will be read from either:
   3. The file specified by environment variable `CONFIG_DATABASE_FILE_PATH`
   4. The default value set on struct instance
 
-### Options
-
-You can pass a list of options to `Pick`.
-These options are helpers for specific situations and setups.
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `konfig.Debug()` | Printing debugging information | [Debugging](https://milad.dev/projects/konfig/#debugging) |
-| `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [Telepresence](https://milad.dev/posts/telepresence-with-konfig) |
-
 ### Using flag Package
 
 `konfig` plays nice with `flag` package since it does NOT use `flag` package for parsing command-line flags.
@@ -151,3 +142,21 @@ func main() {
 
 If you run this example with `-help` or `--help` flag,
 you will see `-enabled` and `-log.level` flags are also added with descriptions!
+
+### Watching Changes
+
+konfig allows you to watch _configuration files_ and dynamically update your configurations as your application is running.
+
+When using `Watch()` method, your struct should have a `sync.Mutex` field on it for synchronization and preventing data races.
+You can find an example of using `Watch()` method [here](./examples/3-watch).
+
+### Options
+
+You can pass a list of options to `Pick`.
+These options are helpers for specific situations and setups.
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `konfig.Debug()` | Printing debugging information | [Example](./examples/2-debug), [Blog](https://milad.dev/projects/konfig/#debugging) |
+| `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [Blog](https://milad.dev/posts/telepresence-with-konfig) |
+| `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [Example](./examples/3-watch) |

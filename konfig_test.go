@@ -54,6 +54,45 @@ type config struct {
 	FieldURLArray      []url.URL       // `flag:"field.url.array" env:"FIELD_URL_ARRAY" fileenv:"FIELD_URL_ARRAY_FILE" sep:","`
 }
 
+func configEqual(c1, c2 *config) bool {
+	return c1.unexported == c2.unexported &&
+		c1.SkipFlag == c2.SkipFlag &&
+		c1.SkipFlagEnv == c2.SkipFlagEnv &&
+		c1.SkipFlagEnvFile == c2.SkipFlagEnvFile &&
+		c1.FieldString == c2.FieldString &&
+		c1.FieldBool == c2.FieldBool &&
+		c1.FieldFloat32 == c2.FieldFloat32 &&
+		c1.FieldFloat64 == c2.FieldFloat64 &&
+		c1.FieldInt == c2.FieldInt &&
+		c1.FieldInt8 == c2.FieldInt8 &&
+		c1.FieldInt16 == c2.FieldInt16 &&
+		c1.FieldInt32 == c2.FieldInt32 &&
+		c1.FieldInt64 == c2.FieldInt64 &&
+		c1.FieldUint == c2.FieldUint &&
+		c1.FieldUint8 == c2.FieldUint8 &&
+		c1.FieldUint16 == c2.FieldUint16 &&
+		c1.FieldUint32 == c2.FieldUint32 &&
+		c1.FieldUint64 == c2.FieldUint64 &&
+		c1.FieldDuration == c2.FieldDuration &&
+		c1.FieldURL == c2.FieldURL &&
+		reflect.DeepEqual(c1.FieldStringArray, c2.FieldStringArray) &&
+		reflect.DeepEqual(c1.FieldBoolArray, c2.FieldBoolArray) &&
+		reflect.DeepEqual(c1.FieldFloat32Array, c2.FieldFloat32Array) &&
+		reflect.DeepEqual(c1.FieldFloat64Array, c2.FieldFloat64Array) &&
+		reflect.DeepEqual(c1.FieldIntArray, c2.FieldIntArray) &&
+		reflect.DeepEqual(c1.FieldInt8Array, c2.FieldInt8Array) &&
+		reflect.DeepEqual(c1.FieldInt16Array, c2.FieldInt16Array) &&
+		reflect.DeepEqual(c1.FieldInt32Array, c2.FieldInt32Array) &&
+		reflect.DeepEqual(c1.FieldInt64Array, c2.FieldInt64Array) &&
+		reflect.DeepEqual(c1.FieldUintArray, c2.FieldUintArray) &&
+		reflect.DeepEqual(c1.FieldUint8Array, c2.FieldUint8Array) &&
+		reflect.DeepEqual(c1.FieldUint16Array, c2.FieldUint16Array) &&
+		reflect.DeepEqual(c1.FieldUint32Array, c2.FieldUint32Array) &&
+		reflect.DeepEqual(c1.FieldUint64Array, c2.FieldUint64Array) &&
+		reflect.DeepEqual(c1.FieldDurationArray, c2.FieldDurationArray) &&
+		reflect.DeepEqual(c1.FieldURLArray, c2.FieldURLArray)
+}
+
 func TestDebug(t *testing.T) {
 	tests := []struct {
 		c         *controller
@@ -3720,6 +3759,522 @@ func TestPick(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedConfig, tc.config)
+			}
+		})
+	}
+
+	// flag.Parse() can be called only once
+	flag.Parse()
+}
+
+func TestWatch(t *testing.T) {
+	type env struct {
+		varName string
+		value   string
+	}
+
+	type file struct {
+		varName   string
+		initValue string
+		newValue  string
+	}
+
+	d90m := 90 * time.Minute
+	d120m := 120 * time.Minute
+	d4h := 4 * time.Hour
+	d8h := 8 * time.Hour
+
+	service1URL, _ := url.Parse("service-1:8080")
+	service2URL, _ := url.Parse("service-2:8080")
+	service3URL, _ := url.Parse("service-3:8080")
+	service4URL, _ := url.Parse("service-4:8080")
+
+	tests := []struct {
+		name               string
+		args               []string
+		envs               []env
+		files              []file
+		config             *config
+		subscribers        []chan Update
+		opts               []Option
+		expectedError      error
+		expectedInitConfig *config
+		expectedNewConfig  *config
+		expectedUpdates    []Update
+	}{
+		{
+			"BlockingChannels",
+			[]string{
+				"path/to/binary",
+				"-field.bool",
+			},
+			[]env{
+				{"FIELD_STRING", "content"},
+			},
+			[]file{
+				{"FIELD_FLOAT32_FILE", "3.1415", "2.7182"},
+				{"FIELD_FLOAT64_FILE", "3.14159265359", "2.7182818284"},
+				{"FIELD_INT_FILE", "-2147483648", "2147483647"},
+				{"FIELD_INT8_FILE", "-128", "127"},
+				{"FIELD_INT16_FILE", "-32768", "32767"},
+				{"FIELD_INT32_FILE", "-2147483648", "2147483647"},
+				{"FIELD_INT64_FILE", "-9223372036854775808", "9223372036854775807"},
+				{"FIELD_UINT_FILE", "4294967295", "2147483648"},
+				{"FIELD_UINT8_FILE", "255", "128"},
+				{"FIELD_UINT16_FILE", "65535", "32768"},
+				{"FIELD_UINT32_FILE", "4294967295", "2147483648"},
+				{"FIELD_UINT64_FILE", "18446744073709551615", "9223372036854775808"},
+				{"FIELD_DURATION_FILE", "90m", "4h"},
+				{"FIELD_URL_FILE", "service-1:8080", "service-3:8080"},
+				{"FIELD_STRING_ARRAY_FILE", "milad,mona", "mona,milad"},
+				{"FIELD_BOOL_ARRAY_FILE", "false,true", "true,false"},
+				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182", "2.7182,3.1415"},
+				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845", "2.71828182845,3.14159265359"},
+				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647", "2147483647,-2147483648"},
+				{"FIELD_INT8_ARRAY_FILE", "-128,127", "127,-128"},
+				{"FIELD_INT16_ARRAY_FILE", "-32768,32767", "32767,-32768"},
+				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647", "2147483647,-2147483648"},
+				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807", "9223372036854775807,-9223372036854775808"},
+				{"FIELD_UINT_ARRAY_FILE", "0,4294967295", "4294967295,0"},
+				{"FIELD_UINT8_ARRAY_FILE", "0,255", "255,0"},
+				{"FIELD_UINT16_ARRAY_FILE", "0,65535", "65535,0"},
+				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295", "4294967295,0"},
+				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615", "18446744073709551615,0"},
+				{"FIELD_DURATION_ARRAY_FILE", "90m,120m", "4h,8h"},
+				{"FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080", "service-3:8080,service-4:8080"},
+			},
+			&config{},
+			[]chan Update{
+				make(chan Update),
+				make(chan Update),
+			},
+			[]Option{
+				WatchInterval(50 * time.Millisecond),
+			},
+			nil,
+			&config{
+				unexported:         "",
+				SkipFlag:           "",
+				SkipFlagEnv:        "",
+				SkipFlagEnvFile:    "",
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       3.1415,
+				FieldFloat64:       3.14159265359,
+				FieldInt:           -2147483648,
+				FieldInt8:          -128,
+				FieldInt16:         -32768,
+				FieldInt32:         -2147483648,
+				FieldInt64:         -9223372036854775808,
+				FieldUint:          4294967295,
+				FieldUint8:         255,
+				FieldUint16:        65535,
+				FieldUint32:        4294967295,
+				FieldUint64:        18446744073709551615,
+				FieldDuration:      d90m,
+				FieldURL:           *service1URL,
+				FieldStringArray:   []string{"milad", "mona"},
+				FieldBoolArray:     []bool{false, true},
+				FieldFloat32Array:  []float32{3.1415, 2.7182},
+				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
+				FieldIntArray:      []int{-2147483648, 2147483647},
+				FieldInt8Array:     []int8{-128, 127},
+				FieldInt16Array:    []int16{-32768, 32767},
+				FieldInt32Array:    []int32{-2147483648, 2147483647},
+				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
+				FieldUintArray:     []uint{0, 4294967295},
+				FieldUint8Array:    []uint8{0, 255},
+				FieldUint16Array:   []uint16{0, 65535},
+				FieldUint32Array:   []uint32{0, 4294967295},
+				FieldUint64Array:   []uint64{0, 18446744073709551615},
+				FieldDurationArray: []time.Duration{d90m, d120m},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
+			},
+			&config{
+				unexported:         "",
+				SkipFlag:           "",
+				SkipFlagEnv:        "",
+				SkipFlagEnvFile:    "",
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       2.7182,
+				FieldFloat64:       2.7182818284,
+				FieldInt:           2147483647,
+				FieldInt8:          127,
+				FieldInt16:         32767,
+				FieldInt32:         2147483647,
+				FieldInt64:         9223372036854775807,
+				FieldUint:          2147483648,
+				FieldUint8:         128,
+				FieldUint16:        32768,
+				FieldUint32:        2147483648,
+				FieldUint64:        9223372036854775808,
+				FieldDuration:      d4h,
+				FieldURL:           *service3URL,
+				FieldStringArray:   []string{"mona", "milad"},
+				FieldBoolArray:     []bool{true, false},
+				FieldFloat32Array:  []float32{2.7182, 3.1415},
+				FieldFloat64Array:  []float64{2.71828182845, 3.14159265359},
+				FieldIntArray:      []int{2147483647, -2147483648},
+				FieldInt8Array:     []int8{127, -128},
+				FieldInt16Array:    []int16{32767, -32768},
+				FieldInt32Array:    []int32{2147483647, -2147483648},
+				FieldInt64Array:    []int64{9223372036854775807, -9223372036854775808},
+				FieldUintArray:     []uint{4294967295, 0},
+				FieldUint8Array:    []uint8{255, 0},
+				FieldUint16Array:   []uint16{65535, 0},
+				FieldUint32Array:   []uint32{4294967295, 0},
+				FieldUint64Array:   []uint64{18446744073709551615, 0},
+				FieldDurationArray: []time.Duration{d4h, d8h},
+				FieldURLArray:      []url.URL{*service3URL, *service4URL},
+			},
+			[]Update{
+				{"FieldString", "content"},
+				{"FieldBool", true},
+				{"FieldFloat32", float32(3.1415)},
+				{"FieldFloat64", float64(3.14159265359)},
+				{"FieldInt", int(-2147483648)},
+				{"FieldInt8", int8(-128)},
+				{"FieldInt16", int16(-32768)},
+				{"FieldInt32", int32(-2147483648)},
+				{"FieldInt64", int64(-9223372036854775808)},
+				{"FieldUint", uint(4294967295)},
+				{"FieldUint8", uint8(255)},
+				{"FieldUint16", uint16(65535)},
+				{"FieldUint32", uint32(4294967295)},
+				{"FieldUint64", uint64(18446744073709551615)},
+				{"FieldDuration", d90m},
+				{"FieldURL", *service1URL},
+				{"FieldStringArray", []string{"milad", "mona"}},
+				{"FieldBoolArray", []bool{false, true}},
+				{"FieldFloat32Array", []float32{3.1415, 2.7182}},
+				{"FieldFloat64Array", []float64{3.14159265359, 2.71828182845}},
+				{"FieldIntArray", []int{-2147483648, 2147483647}},
+				{"FieldInt8Array", []int8{-128, 127}},
+				{"FieldInt16Array", []int16{-32768, 32767}},
+				{"FieldInt32Array", []int32{-2147483648, 2147483647}},
+				{"FieldInt64Array", []int64{-9223372036854775808, 9223372036854775807}},
+				{"FieldUintArray", []uint{0, 4294967295}},
+				{"FieldUint8Array", []uint8{0, 255}},
+				{"FieldUint16Array", []uint16{0, 65535}},
+				{"FieldUint32Array", []uint32{0, 4294967295}},
+				{"FieldUint64Array", []uint64{0, 18446744073709551615}},
+				{"FieldDurationArray", []time.Duration{d90m, d120m}},
+				{"FieldURLArray", []url.URL{*service1URL, *service2URL}},
+
+				{"FieldFloat32", float32(2.7182)},
+				{"FieldFloat64", float64(2.7182818284)},
+				{"FieldInt", int(2147483647)},
+				{"FieldInt8", int8(127)},
+				{"FieldInt16", int16(32767)},
+				{"FieldInt32", int32(2147483647)},
+				{"FieldInt64", int64(9223372036854775807)},
+				{"FieldUint", uint(2147483648)},
+				{"FieldUint8", uint8(128)},
+				{"FieldUint16", uint16(32768)},
+				{"FieldUint32", uint32(2147483648)},
+				{"FieldUint64", uint64(9223372036854775808)},
+				{"FieldDuration", d4h},
+				{"FieldURL", *service3URL},
+				{"FieldStringArray", []string{"mona", "milad"}},
+				{"FieldBoolArray", []bool{true, false}},
+				{"FieldFloat32Array", []float32{2.7182, 3.1415}},
+				{"FieldFloat64Array", []float64{2.71828182845, 3.14159265359}},
+				{"FieldIntArray", []int{2147483647, -2147483648}},
+				{"FieldInt8Array", []int8{127, -128}},
+				{"FieldInt16Array", []int16{32767, -32768}},
+				{"FieldInt32Array", []int32{2147483647, -2147483648}},
+				{"FieldInt64Array", []int64{9223372036854775807, -9223372036854775808}},
+				{"FieldUintArray", []uint{4294967295, 0}},
+				{"FieldUint8Array", []uint8{255, 0}},
+				{"FieldUint16Array", []uint16{65535, 0}},
+				{"FieldUint32Array", []uint32{4294967295, 0}},
+				{"FieldUint64Array", []uint64{18446744073709551615, 0}},
+				{"FieldDurationArray", []time.Duration{d4h, d8h}},
+				{"FieldURLArray", []url.URL{*service3URL, *service4URL}},
+			},
+		},
+		{
+			"BufferedChannels",
+			[]string{
+				"path/to/binary",
+				"-field.bool",
+			},
+			[]env{
+				{"FIELD_STRING", "content"},
+			},
+			[]file{
+				{"FIELD_FLOAT32_FILE", "3.1415", "2.7182"},
+				{"FIELD_FLOAT64_FILE", "3.14159265359", "2.7182818284"},
+				{"FIELD_INT_FILE", "-2147483648", "2147483647"},
+				{"FIELD_INT8_FILE", "-128", "127"},
+				{"FIELD_INT16_FILE", "-32768", "32767"},
+				{"FIELD_INT32_FILE", "-2147483648", "2147483647"},
+				{"FIELD_INT64_FILE", "-9223372036854775808", "9223372036854775807"},
+				{"FIELD_UINT_FILE", "4294967295", "2147483648"},
+				{"FIELD_UINT8_FILE", "255", "128"},
+				{"FIELD_UINT16_FILE", "65535", "32768"},
+				{"FIELD_UINT32_FILE", "4294967295", "2147483648"},
+				{"FIELD_UINT64_FILE", "18446744073709551615", "9223372036854775808"},
+				{"FIELD_DURATION_FILE", "90m", "4h"},
+				{"FIELD_URL_FILE", "service-1:8080", "service-3:8080"},
+				{"FIELD_STRING_ARRAY_FILE", "milad,mona", "mona,milad"},
+				{"FIELD_BOOL_ARRAY_FILE", "false,true", "true,false"},
+				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182", "2.7182,3.1415"},
+				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845", "2.71828182845,3.14159265359"},
+				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647", "2147483647,-2147483648"},
+				{"FIELD_INT8_ARRAY_FILE", "-128,127", "127,-128"},
+				{"FIELD_INT16_ARRAY_FILE", "-32768,32767", "32767,-32768"},
+				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647", "2147483647,-2147483648"},
+				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807", "9223372036854775807,-9223372036854775808"},
+				{"FIELD_UINT_ARRAY_FILE", "0,4294967295", "4294967295,0"},
+				{"FIELD_UINT8_ARRAY_FILE", "0,255", "255,0"},
+				{"FIELD_UINT16_ARRAY_FILE", "0,65535", "65535,0"},
+				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295", "4294967295,0"},
+				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615", "18446744073709551615,0"},
+				{"FIELD_DURATION_ARRAY_FILE", "90m,120m", "4h,8h"},
+				{"FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080", "service-3:8080,service-4:8080"},
+			},
+			&config{},
+			[]chan Update{
+				make(chan Update, 100),
+				make(chan Update, 100),
+			},
+			[]Option{
+				WatchInterval(50 * time.Millisecond),
+			},
+			nil,
+			&config{
+				unexported:         "",
+				SkipFlag:           "",
+				SkipFlagEnv:        "",
+				SkipFlagEnvFile:    "",
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       3.1415,
+				FieldFloat64:       3.14159265359,
+				FieldInt:           -2147483648,
+				FieldInt8:          -128,
+				FieldInt16:         -32768,
+				FieldInt32:         -2147483648,
+				FieldInt64:         -9223372036854775808,
+				FieldUint:          4294967295,
+				FieldUint8:         255,
+				FieldUint16:        65535,
+				FieldUint32:        4294967295,
+				FieldUint64:        18446744073709551615,
+				FieldDuration:      d90m,
+				FieldURL:           *service1URL,
+				FieldStringArray:   []string{"milad", "mona"},
+				FieldBoolArray:     []bool{false, true},
+				FieldFloat32Array:  []float32{3.1415, 2.7182},
+				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
+				FieldIntArray:      []int{-2147483648, 2147483647},
+				FieldInt8Array:     []int8{-128, 127},
+				FieldInt16Array:    []int16{-32768, 32767},
+				FieldInt32Array:    []int32{-2147483648, 2147483647},
+				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
+				FieldUintArray:     []uint{0, 4294967295},
+				FieldUint8Array:    []uint8{0, 255},
+				FieldUint16Array:   []uint16{0, 65535},
+				FieldUint32Array:   []uint32{0, 4294967295},
+				FieldUint64Array:   []uint64{0, 18446744073709551615},
+				FieldDurationArray: []time.Duration{d90m, d120m},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
+			},
+			&config{
+				unexported:         "",
+				SkipFlag:           "",
+				SkipFlagEnv:        "",
+				SkipFlagEnvFile:    "",
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       2.7182,
+				FieldFloat64:       2.7182818284,
+				FieldInt:           2147483647,
+				FieldInt8:          127,
+				FieldInt16:         32767,
+				FieldInt32:         2147483647,
+				FieldInt64:         9223372036854775807,
+				FieldUint:          2147483648,
+				FieldUint8:         128,
+				FieldUint16:        32768,
+				FieldUint32:        2147483648,
+				FieldUint64:        9223372036854775808,
+				FieldDuration:      d4h,
+				FieldURL:           *service3URL,
+				FieldStringArray:   []string{"mona", "milad"},
+				FieldBoolArray:     []bool{true, false},
+				FieldFloat32Array:  []float32{2.7182, 3.1415},
+				FieldFloat64Array:  []float64{2.71828182845, 3.14159265359},
+				FieldIntArray:      []int{2147483647, -2147483648},
+				FieldInt8Array:     []int8{127, -128},
+				FieldInt16Array:    []int16{32767, -32768},
+				FieldInt32Array:    []int32{2147483647, -2147483648},
+				FieldInt64Array:    []int64{9223372036854775807, -9223372036854775808},
+				FieldUintArray:     []uint{4294967295, 0},
+				FieldUint8Array:    []uint8{255, 0},
+				FieldUint16Array:   []uint16{65535, 0},
+				FieldUint32Array:   []uint32{4294967295, 0},
+				FieldUint64Array:   []uint64{18446744073709551615, 0},
+				FieldDurationArray: []time.Duration{d4h, d8h},
+				FieldURLArray:      []url.URL{*service3URL, *service4URL},
+			},
+			[]Update{
+				{"FieldString", "content"},
+				{"FieldBool", true},
+				{"FieldFloat32", float32(3.1415)},
+				{"FieldFloat64", float64(3.14159265359)},
+				{"FieldInt", int(-2147483648)},
+				{"FieldInt8", int8(-128)},
+				{"FieldInt16", int16(-32768)},
+				{"FieldInt32", int32(-2147483648)},
+				{"FieldInt64", int64(-9223372036854775808)},
+				{"FieldUint", uint(4294967295)},
+				{"FieldUint8", uint8(255)},
+				{"FieldUint16", uint16(65535)},
+				{"FieldUint32", uint32(4294967295)},
+				{"FieldUint64", uint64(18446744073709551615)},
+				{"FieldDuration", d90m},
+				{"FieldURL", *service1URL},
+				{"FieldStringArray", []string{"milad", "mona"}},
+				{"FieldBoolArray", []bool{false, true}},
+				{"FieldFloat32Array", []float32{3.1415, 2.7182}},
+				{"FieldFloat64Array", []float64{3.14159265359, 2.71828182845}},
+				{"FieldIntArray", []int{-2147483648, 2147483647}},
+				{"FieldInt8Array", []int8{-128, 127}},
+				{"FieldInt16Array", []int16{-32768, 32767}},
+				{"FieldInt32Array", []int32{-2147483648, 2147483647}},
+				{"FieldInt64Array", []int64{-9223372036854775808, 9223372036854775807}},
+				{"FieldUintArray", []uint{0, 4294967295}},
+				{"FieldUint8Array", []uint8{0, 255}},
+				{"FieldUint16Array", []uint16{0, 65535}},
+				{"FieldUint32Array", []uint32{0, 4294967295}},
+				{"FieldUint64Array", []uint64{0, 18446744073709551615}},
+				{"FieldDurationArray", []time.Duration{d90m, d120m}},
+				{"FieldURLArray", []url.URL{*service1URL, *service2URL}},
+
+				{"FieldFloat32", float32(2.7182)},
+				{"FieldFloat64", float64(2.7182818284)},
+				{"FieldInt", int(2147483647)},
+				{"FieldInt8", int8(127)},
+				{"FieldInt16", int16(32767)},
+				{"FieldInt32", int32(2147483647)},
+				{"FieldInt64", int64(9223372036854775807)},
+				{"FieldUint", uint(2147483648)},
+				{"FieldUint8", uint8(128)},
+				{"FieldUint16", uint16(32768)},
+				{"FieldUint32", uint32(2147483648)},
+				{"FieldUint64", uint64(9223372036854775808)},
+				{"FieldDuration", d4h},
+				{"FieldURL", *service3URL},
+				{"FieldStringArray", []string{"mona", "milad"}},
+				{"FieldBoolArray", []bool{true, false}},
+				{"FieldFloat32Array", []float32{2.7182, 3.1415}},
+				{"FieldFloat64Array", []float64{2.71828182845, 3.14159265359}},
+				{"FieldIntArray", []int{2147483647, -2147483648}},
+				{"FieldInt8Array", []int8{127, -128}},
+				{"FieldInt16Array", []int16{32767, -32768}},
+				{"FieldInt32Array", []int32{2147483647, -2147483648}},
+				{"FieldInt64Array", []int64{9223372036854775807, -9223372036854775808}},
+				{"FieldUintArray", []uint{4294967295, 0}},
+				{"FieldUint8Array", []uint8{255, 0}},
+				{"FieldUint16Array", []uint16{65535, 0}},
+				{"FieldUint32Array", []uint32{4294967295, 0}},
+				{"FieldUint64Array", []uint64{18446744073709551615, 0}},
+				{"FieldDurationArray", []time.Duration{d4h, d8h}},
+				{"FieldURLArray", []url.URL{*service3URL, *service4URL}},
+			},
+		},
+	}
+
+	origArgs := os.Args
+	defer func() {
+		os.Args = origArgs
+	}()
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var wg sync.WaitGroup
+
+			c := &controller{}
+			for _, opt := range tc.opts {
+				opt(c)
+			}
+
+			// Set arguments for flags
+			os.Args = tc.args
+
+			// Set environment variables
+			for _, e := range tc.envs {
+				err := os.Setenv(e.varName, e.value)
+				defer os.Unsetenv(e.varName)
+				assert.NoError(t, err)
+			}
+
+			// Testing Telepresence option
+			if c.telepresence {
+				err := os.Setenv(telepresenceEnvVar, "/")
+				defer os.Unsetenv(telepresenceEnvVar)
+				assert.NoError(t, err)
+			}
+
+			// Write configuration files
+			for _, f := range tc.files {
+				tmpfile, err := ioutil.TempFile("", "gotest_")
+				assert.NoError(t, err)
+				defer os.Remove(tmpfile.Name())
+
+				_, err = tmpfile.WriteString(f.initValue)
+				assert.NoError(t, err)
+
+				err = tmpfile.Close()
+				assert.NoError(t, err)
+
+				err = os.Setenv(f.varName, tmpfile.Name())
+				assert.NoError(t, err)
+				defer os.Unsetenv(f.varName)
+
+				// Will write the new value to the file
+				wg.Add(1)
+				newValue := f.newValue
+				time.AfterFunc(c.watchInterval/2, func() {
+					err := ioutil.WriteFile(tmpfile.Name(), []byte(newValue), 0644)
+					assert.NoError(t, err)
+					wg.Done()
+				})
+			}
+
+			// Listening for updates
+			for i, sub := range tc.subscribers {
+				go func(id int, ch chan Update) {
+					for update := range ch {
+						assert.Contains(t, tc.expectedUpdates, update)
+					}
+				}(i, sub)
+			}
+
+			stop, err := Watch(tc.config, tc.subscribers, tc.opts...)
+
+			if tc.expectedError != nil {
+				assert.Equal(t, tc.expectedError, err)
+				assert.Nil(t, stop)
+			} else {
+				assert.NoError(t, err)
+				defer stop()
+
+				tc.config.Lock()
+				// assert.Equal(t, tc.expectedInitConfig, tc.config)
+				assert.True(t, configEqual(tc.expectedInitConfig, tc.config))
+				tc.config.Unlock()
+
+				// Wait for all files to be updated and the new values are picked up
+				wg.Wait()
+				time.Sleep(c.watchInterval)
+
+				tc.config.Lock()
+				assert.True(t, configEqual(tc.expectedNewConfig, tc.config))
+				tc.config.Unlock()
 			}
 		})
 	}

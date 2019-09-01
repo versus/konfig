@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -157,9 +158,11 @@ func (c *controller) getFieldValue(fieldName, flagName, envName, fileEnvName str
 }
 
 func (c *controller) notifySubscribers(name string, value interface{}) {
-	if len(c.subscribers) > 0 {
-		c.log(1, "[%s] notifying %d subscribers ...", name, len(c.subscribers))
+	if len(c.subscribers) == 0 {
+		return
 	}
+
+	c.log(1, "[%s] notifying %d subscribers ...", name, len(c.subscribers))
 
 	update := Update{
 		Name:  name,
@@ -375,7 +378,7 @@ func (c *controller) setStruct(v reflect.Value, name, val string) bool {
 			if !reflect.DeepEqual(v.Interface(), *u) {
 				c.log(2, "[%s] setting url value: %s", name, val)
 				v.Set(reflect.ValueOf(u).Elem())
-				c.notifySubscribers(name, u)
+				c.notifySubscribers(name, *u)
 				return true
 			}
 		}
@@ -868,4 +871,49 @@ func Pick(config interface{}, opts ...Option) error {
 	c.readConfig(v, false)
 
 	return nil
+}
+
+// Watch first reads values for exported fields of a struct from either command-line flags, environment variables, or configuration files.
+// It then watches any change to those fields that their values are read from configuration files and notifies subscribers on a channel.
+func Watch(config sync.Locker, subscribers []chan Update, opts ...Option) (func(), error) {
+	c := &controller{
+		watchInterval: defaultInterval,
+		subscribers:   subscribers,
+	}
+
+	// Applying options
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	c.log(2, line)
+	c.log(2, "Options: %s", c)
+	c.log(2, line)
+
+	v, err := validateStruct(config)
+	if err != nil {
+		return nil, err
+	}
+
+	c.registerFlags(v)
+	c.readConfig(v, false)
+
+	ticker := time.NewTicker(c.watchInterval)
+
+	go func() {
+		for range ticker.C {
+			config.Lock()
+			c.readConfig(v, true)
+			config.Unlock()
+		}
+	}()
+
+	stop := func() {
+		ticker.Stop()
+		for _, sub := range c.subscribers {
+			close(sub)
+		}
+	}
+
+	return stop, nil
 }

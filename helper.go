@@ -162,14 +162,12 @@ func isTypeSupported(t reflect.Type) bool {
 		return true
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return true
-
+	case reflect.Slice:
+		return isTypeSupported(t.Elem())
 	case reflect.Struct:
 		if t.PkgPath() == "net/url" && t.Name() == "URL" {
 			return true
 		}
-
-	case reflect.Slice:
-		return isTypeSupported(t.Elem())
 	}
 
 	return false

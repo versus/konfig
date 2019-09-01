@@ -12,5 +12,5 @@ action "Lint" {
 action "Test" {
   uses = "docker://golang:1.12"
   runs = [ "go", "test" ]
-  args = [ "-race", "./..." ]
+  args = [ "-race", "." ]
 }
