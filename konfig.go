@@ -204,7 +204,7 @@ func (c *controller) setFloat32(v reflect.Value, name, val string) bool {
 		if v.Float() != f {
 			c.log(2, "[%s] setting float value: %f", name, f)
 			v.SetFloat(f)
-			c.notifySubscribers(name, f)
+			c.notifySubscribers(name, float32(f))
 			return true
 		}
 	}
@@ -226,6 +226,59 @@ func (c *controller) setFloat64(v reflect.Value, name, val string) bool {
 }
 
 func (c *controller) setInt(v reflect.Value, name, val string) bool {
+	// int size and range are platform-dependent
+	if i, err := strconv.ParseInt(val, 10, 64); err == nil {
+		if v.Int() != i {
+			c.log(2, "[%s] setting integer value: %d", name, i)
+			v.SetInt(i)
+			c.notifySubscribers(name, int(i))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setInt8(v reflect.Value, name, val string) bool {
+	if i, err := strconv.ParseInt(val, 10, 8); err == nil {
+		if v.Int() != i {
+			c.log(2, "[%s] setting integer value: %d", name, i)
+			v.SetInt(i)
+			c.notifySubscribers(name, int8(i))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setInt16(v reflect.Value, name, val string) bool {
+	if i, err := strconv.ParseInt(val, 10, 16); err == nil {
+		if v.Int() != i {
+			c.log(2, "[%s] setting integer value: %d", name, i)
+			v.SetInt(i)
+			c.notifySubscribers(name, int16(i))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setInt32(v reflect.Value, name, val string) bool {
+	if i, err := strconv.ParseInt(val, 10, 32); err == nil {
+		if v.Int() != i {
+			c.log(2, "[%s] setting integer value: %d", name, i)
+			v.SetInt(i)
+			c.notifySubscribers(name, int32(i))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setInt64(v reflect.Value, name, val string) bool {
 	if t := v.Type(); t.PkgPath() == "time" && t.Name() == "Duration" {
 		// time.Duration
 		if d, err := time.ParseDuration(val); err == nil {
@@ -249,6 +302,59 @@ func (c *controller) setInt(v reflect.Value, name, val string) bool {
 }
 
 func (c *controller) setUint(v reflect.Value, name, val string) bool {
+	// uint size and range are platform-dependent
+	if u, err := strconv.ParseUint(val, 10, 64); err == nil {
+		if v.Uint() != u {
+			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			v.SetUint(u)
+			c.notifySubscribers(name, uint(u))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setUint8(v reflect.Value, name, val string) bool {
+	if u, err := strconv.ParseUint(val, 10, 8); err == nil {
+		if v.Uint() != u {
+			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			v.SetUint(u)
+			c.notifySubscribers(name, uint8(u))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setUint16(v reflect.Value, name, val string) bool {
+	if u, err := strconv.ParseUint(val, 10, 16); err == nil {
+		if v.Uint() != u {
+			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			v.SetUint(u)
+			c.notifySubscribers(name, uint16(u))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setUint32(v reflect.Value, name, val string) bool {
+	if u, err := strconv.ParseUint(val, 10, 32); err == nil {
+		if v.Uint() != u {
+			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			v.SetUint(u)
+			c.notifySubscribers(name, uint32(u))
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setUint64(v reflect.Value, name, val string) bool {
 	if u, err := strconv.ParseUint(val, 10, 64); err == nil {
 		if v.Uint() != u {
 			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
@@ -344,6 +450,7 @@ func (c *controller) setFloat64Slice(v reflect.Value, name string, vals []string
 }
 
 func (c *controller) setIntSlice(v reflect.Value, name string, vals []string) bool {
+	// int size and range are platform-dependent
 	ints := []int{}
 	for _, val := range vals {
 		if i, err := strconv.ParseInt(val, 10, 64); err == nil {
@@ -451,6 +558,7 @@ func (c *controller) setInt64Slice(v reflect.Value, name string, vals []string) 
 }
 
 func (c *controller) setUintSlice(v reflect.Value, name string, vals []string) bool {
+	// uint size and range are platform-dependent
 	uints := []uint{}
 	for _, val := range vals {
 		if u, err := strconv.ParseUint(val, 10, 64); err == nil {
@@ -674,10 +782,26 @@ func (c *controller) readConfig(vStruct reflect.Value, watchMode bool) {
 			c.setFloat32(v, fieldName, val)
 		case reflect.Float64:
 			c.setFloat64(v, fieldName, val)
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		case reflect.Int:
 			c.setInt(v, fieldName, val)
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		case reflect.Int8:
+			c.setInt8(v, fieldName, val)
+		case reflect.Int16:
+			c.setInt16(v, fieldName, val)
+		case reflect.Int32:
+			c.setInt32(v, fieldName, val)
+		case reflect.Int64:
+			c.setInt64(v, fieldName, val)
+		case reflect.Uint:
 			c.setUint(v, fieldName, val)
+		case reflect.Uint8:
+			c.setUint8(v, fieldName, val)
+		case reflect.Uint16:
+			c.setUint16(v, fieldName, val)
+		case reflect.Uint32:
+			c.setUint32(v, fieldName, val)
+		case reflect.Uint64:
+			c.setUint64(v, fieldName, val)
 		case reflect.Struct:
 			c.setStruct(v, fieldName, val)
 

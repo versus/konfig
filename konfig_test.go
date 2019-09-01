@@ -629,17 +629,17 @@ func TestSetInt(t *testing.T) {
 			c:              &controller{},
 			field:          0,
 			fieldName:      "Field",
-			fieldValue:     "-27",
-			expectedValue:  -27,
+			fieldValue:     "-2147483648",
+			expectedValue:  -2147483648,
 			expectedResult: true,
 		},
 		{
 			name:           "NoNewValue",
 			c:              &controller{},
-			field:          -27,
+			field:          -2147483648,
 			fieldName:      "Field",
-			fieldValue:     "-27",
-			expectedValue:  -27,
+			fieldValue:     "-2147483648",
+			expectedValue:  -2147483648,
 			expectedResult: false,
 		},
 	}
@@ -688,7 +688,7 @@ func TestSetInt8(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setInt(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setInt8(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -729,7 +729,7 @@ func TestSetInt16(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setInt(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setInt16(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -770,7 +770,7 @@ func TestSetInt32(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setInt(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setInt32(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -811,7 +811,7 @@ func TestSetInt64(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setInt(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setInt64(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -852,7 +852,7 @@ func TestSetDuration(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setInt(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setInt64(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -875,17 +875,17 @@ func TestSetUint(t *testing.T) {
 			c:              &controller{},
 			field:          0,
 			fieldName:      "Field",
-			fieldValue:     "27",
-			expectedValue:  27,
+			fieldValue:     "4294967295",
+			expectedValue:  4294967295,
 			expectedResult: true,
 		},
 		{
 			name:           "NoNewValue",
 			c:              &controller{},
-			field:          27,
+			field:          4294967295,
 			fieldName:      "Field",
-			fieldValue:     "27",
-			expectedValue:  27,
+			fieldValue:     "4294967295",
+			expectedValue:  4294967295,
 			expectedResult: false,
 		},
 	}
@@ -934,7 +934,7 @@ func TestSetUint8(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setUint(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setUint8(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -975,7 +975,7 @@ func TestSetUint16(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setUint(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setUint16(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -1016,7 +1016,7 @@ func TestSetUint32(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setUint(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setUint32(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
@@ -1057,7 +1057,7 @@ func TestSetUint64(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			v := reflect.ValueOf(&tc.field).Elem()
-			res := tc.c.setUint(v, tc.fieldName, tc.fieldValue)
+			res := tc.c.setUint64(v, tc.fieldName, tc.fieldValue)
 
 			assert.Equal(t, tc.expectedValue, tc.field)
 			assert.Equal(t, tc.expectedResult, res)
