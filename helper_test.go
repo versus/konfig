@@ -1,9 +1,12 @@
 package konfig
 
 import (
-	"flag"
+	"errors"
+	"net/url"
 	"os"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -98,7 +101,7 @@ func TestGetEnvVarName(t *testing.T) {
 	}
 }
 
-func TestGetFileVarName(t *testing.T) {
+func TestGetFileEnvVarName(t *testing.T) {
 	tests := []struct {
 		fieldName              string
 		expectedFileEnvVarName string
@@ -120,37 +123,14 @@ func TestGetFileVarName(t *testing.T) {
 	}
 }
 
-func TestDefineFlag(t *testing.T) {
-	tests := []struct {
-		name             string
-		flagName         string
-		defaultValue     string
-		envName          string
-		fileName         string
-		expectedFlagName string
-	}{
-		{"SkipFlag", "-", "default", "SKIP_FLAG", "SKIP_FLAG_FILE", ""},
-		{"ExampleFlag", "example.flag", "default", "EXAMPLE_FLAG", "EXAMPLE_FLAG_FILE", "example.flag"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			defineFlag(tc.flagName, tc.defaultValue, tc.envName, tc.fileName)
-
-			if tc.expectedFlagName != "" {
-				fl := flag.Lookup(tc.expectedFlagName)
-				assert.NotEmpty(t, fl)
-			}
-		})
-	}
-}
-
 func TestGetFlagValue(t *testing.T) {
 	tests := []struct {
 		args              []string
 		flagName          string
 		expectedFlagValue string
 	}{
+		{[]string{"exe", "invalid"}, "invalid", ""},
+
 		{[]string{"exe", "-enabled"}, "enabled", "true"},
 		{[]string{"exe", "--enabled"}, "enabled", "true"},
 		{[]string{"exe", "-enabled=false"}, "enabled", "false"},
@@ -187,5 +167,96 @@ func TestGetFlagValue(t *testing.T) {
 		flagValue := getFlagValue(tc.flagName)
 
 		assert.Equal(t, tc.expectedFlagValue, flagValue)
+	}
+}
+
+func TestValidateStruct(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        interface{}
+		expectedError error
+	}{
+		{
+			"NonStruct",
+			new(string),
+			errors.New("a non-struct type is passed"),
+		},
+		{
+			"NonPointer",
+			config{},
+			errors.New("a non-pointer type is passed"),
+		},
+		{
+			"OK",
+			&config{},
+			nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := validateStruct(tc.config)
+
+			if tc.expectedError == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, tc.expectedError, err)
+				assert.Equal(t, reflect.Value{}, v)
+			}
+		})
+	}
+}
+
+func TestIsTypeSupported(t *testing.T) {
+	service1URL, _ := url.Parse("service-1:8080")
+	service2URL, _ := url.Parse("service-2:8080")
+
+	tests := []struct {
+		name     string
+		field    interface{}
+		expected bool
+	}{
+		{"String", "dummy", true},
+		{"Bool", true, true},
+		{"Float32", float32(3.1415), true},
+		{"Float64", float64(3.14159265359), true},
+		{"Int", int(-2147483648), true},
+		{"Int8", int8(-128), true},
+		{"Int16", int16(-32768), true},
+		{"Int32", int32(-2147483648), true},
+		{"Int64", int64(-9223372036854775808), true},
+		{"Duration", time.Hour, true},
+		{"Uint", uint(4294967295), true},
+		{"Uint8", uint8(255), true},
+		{"Uint16", uint16(65535), true},
+		{"Uint32", uint32(4294967295), true},
+		{"Uint64", uint64(18446744073709551615), true},
+		{"URL", *service1URL, true},
+		{"StringSlice", []string{"foo", "bar"}, true},
+		{"BoolSlice", []bool{true, false}, true},
+		{"Float32Slice", []float32{3.1415, 2.7182}, true},
+		{"Float64Slice", []float64{3.14159265359, 2.71828182845}, true},
+		{"IntSlice", []int{}, true},
+		{"Int8Slice", []int8{}, true},
+		{"Int16Slice", []int16{}, true},
+		{"Int32Slice", []int32{}, true},
+		{"Int64Slice", []int64{}, true},
+		{"DurationSlice", []time.Duration{}, true},
+		{"UintSlice", []uint{}, true},
+		{"Uint8Slice", []uint8{}, true},
+		{"Uint16Slice", []uint16{}, true},
+		{"Uint32Slice", []uint32{}, true},
+		{"Uint64Slice", []uint64{}, true},
+		{"URLSlice", []url.URL{*service1URL, *service2URL}, true},
+		{"Unsupported", time.Now(), false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			typ := reflect.TypeOf(tc.field)
+			res := isTypeSupported(typ)
+
+			assert.Equal(t, tc.expected, res)
+		})
 	}
 }

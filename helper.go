@@ -1,9 +1,9 @@
 package konfig
 
 import (
-	"flag"
-	"fmt"
+	"errors"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"unicode"
@@ -102,26 +102,6 @@ func getFileEnvVarName(name string) string {
 }
 
 /*
- * defineFlag registers a flag name, so it will show up in the help description.
- */
-func defineFlag(flagName, defaultValue, envName, fileEnvName string) {
-	if flagName == skipValue {
-		return
-	}
-
-	usage := fmt.Sprintf(
-		"%s:\t\t\t\t%s\n%s:\t\t\t%s\n%s:\t%s",
-		"default value", defaultValue,
-		"environment variable", envName,
-		"environment variable for file path", fileEnvName,
-	)
-
-	if flag.Lookup(flagName) == nil {
-		flag.Var(&flagValue{}, flagName, usage)
-	}
-}
-
-/*
  * getFlagValue returns the value set for a flag.
  *   - The flag name can start with - or --
  *   - The flag value can be separated by space or =
@@ -148,4 +128,49 @@ func getFlagValue(flagName string) string {
 	}
 
 	return ""
+}
+
+func validateStruct(s interface{}) (reflect.Value, error) {
+	v := reflect.ValueOf(s) // reflect.Value --> v.Type(), v.Kind(), v.NumField()
+	t := reflect.TypeOf(s)  // reflect.Type --> t.Name(), t.Kind(), t.NumField()
+
+	// A pointer to a struct should be passed
+	if t.Kind() != reflect.Ptr {
+		return reflect.Value{}, errors.New("a non-pointer type is passed")
+	}
+
+	// Navigate to the pointer value
+	v = v.Elem()
+	t = t.Elem()
+
+	if t.Kind() != reflect.Struct {
+		return reflect.Value{}, errors.New("a non-struct type is passed")
+	}
+
+	return v, nil
+}
+
+func isTypeSupported(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.String:
+		return true
+	case reflect.Bool:
+		return true
+	case reflect.Float32, reflect.Float64:
+		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return true
+
+	case reflect.Struct:
+		if t.PkgPath() == "net/url" && t.Name() == "URL" {
+			return true
+		}
+
+	case reflect.Slice:
+		return isTypeSupported(t.Elem())
+	}
+
+	return false
 }
