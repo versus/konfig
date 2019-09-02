@@ -5,8 +5,13 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
+)
+
+const (
+	debugEnvVarName = "KONFIG_DEBUG"
 )
 
 type flagValue struct{}
@@ -17,6 +22,21 @@ func (v *flagValue) String() string {
 
 func (v *flagValue) Set(string) error {
 	return nil
+}
+
+func getDebugVerbosity() uint {
+	val := os.Getenv(debugEnvVarName)
+	if val == "" {
+		return 0
+	}
+
+	// verbosity level should not be higher than 255 (8-bits)
+	verbosity, err := strconv.ParseUint(val, 10, 8)
+	if err != nil {
+		return 0
+	}
+
+	return uint(verbosity)
 }
 
 /*

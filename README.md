@@ -143,13 +143,6 @@ func main() {
 If you run this example with `-help` or `--help` flag,
 you will see `-enabled` and `-log.level` flags are also added with descriptions!
 
-### Watching Changes
-
-konfig allows you to watch _configuration files_ and dynamically update your configurations as your application is running.
-
-When using `Watch()` method, your struct should have a `sync.Mutex` field on it for synchronization and preventing data races.
-You can find an example of using `Watch()` method [here](./examples/3-watch).
-
 ### Options
 
 You can pass a list of options to `Pick`.
@@ -157,6 +150,19 @@ These options are helpers for specific situations and setups.
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `konfig.Debug()` | Printing debugging information | [Example](./examples/2-debug), [Blog](https://milad.dev/projects/konfig/#debugging) |
-| `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [Blog](https://milad.dev/posts/telepresence-with-konfig) |
-| `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [Example](./examples/3-watch) |
+| `konfig.Debug()` | Printing debugging information | [example](./examples/2-debug), [blog](https://milad.dev/projects/konfig/#debugging) |
+| `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [blog](https://milad.dev/posts/telepresence-with-konfig) |
+| `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [example](./examples/3-watch) |
+
+### Debugging
+
+If for any reason the configuration values are not read as you expected, you can view the debugging logs.
+You can enable debugging logs either by using `Debug` option or by setting `KONFIG_DEBUG` environment variable.
+In both cases you need to specify a verbosity level for logs.
+
+### Watching Changes
+
+konfig allows you to watch _configuration files_ and dynamically update your configurations as your application is running.
+
+When using `Watch()` method, your struct should have a `sync.Mutex` field on it for synchronization and preventing data races.
+You can find an example of using `Watch()` method [here](./examples/3-watch).

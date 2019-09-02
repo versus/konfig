@@ -35,6 +35,34 @@ func TestFlagValue(t *testing.T) {
 	}
 }
 
+func TestGetDebugVerbosity(t *testing.T) {
+	tests := []struct {
+		name              string
+		envVarValue       string
+		expectedVerbosity uint
+	}{
+		{"NotSet", "", 0},
+		{"Level1", "1", 1},
+		{"Level2", "2", 2},
+		{"Level3", "3", 3},
+		{"Level999", "255", 255},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.envVarValue != "" {
+				err := os.Setenv(debugEnvVarName, tc.envVarValue)
+				assert.NoError(t, err)
+				defer os.Unsetenv(debugEnvVarName)
+			}
+
+			verbosity := getDebugVerbosity()
+
+			assert.Equal(t, tc.expectedVerbosity, verbosity)
+		})
+	}
+}
+
 func TestTokenize(t *testing.T) {
 	tests := []struct {
 		fieldName      string

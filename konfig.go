@@ -851,7 +851,9 @@ func (c *controller) readConfig(vStruct reflect.Value, watchMode bool) {
 // Pick reads values for exported fields of a struct from either command-line flags, environment variables, or configuration files.
 // You can also specify default values.
 func Pick(config interface{}, opts ...Option) error {
-	c := &controller{}
+	c := &controller{
+		debug: getDebugVerbosity(),
+	}
 
 	// Applying options
 	for _, opt := range opts {
@@ -877,6 +879,7 @@ func Pick(config interface{}, opts ...Option) error {
 // It then watches any change to those fields that their values are read from configuration files and notifies subscribers on a channel.
 func Watch(config sync.Locker, subscribers []chan Update, opts ...Option) (func(), error) {
 	c := &controller{
+		debug:         getDebugVerbosity(),
 		watchInterval: defaultInterval,
 		subscribers:   subscribers,
 	}
@@ -910,6 +913,8 @@ func Watch(config sync.Locker, subscribers []chan Update, opts ...Option) (func(
 
 	stop := func() {
 		ticker.Stop()
+
+		// TODO: closing subscriber channels causes data race if notifySubscribers is writing to any
 		for _, sub := range c.subscribers {
 			close(sub)
 		}
