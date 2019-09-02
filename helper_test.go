@@ -38,7 +38,7 @@ func TestFlagValue(t *testing.T) {
 func TestGetDebugVerbosity(t *testing.T) {
 	tests := []struct {
 		name              string
-		envVarValue       string
+		envValue          string
 		expectedVerbosity uint
 	}{
 		{"NotSet", "", 0},
@@ -50,10 +50,10 @@ func TestGetDebugVerbosity(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.envVarValue != "" {
-				err := os.Setenv(debugEnvVarName, tc.envVarValue)
+			if tc.envValue != "" {
+				err := os.Setenv(debugEnvVar, tc.envValue)
 				assert.NoError(t, err)
-				defer os.Unsetenv(debugEnvVarName)
+				defer os.Unsetenv(debugEnvVar)
 			}
 
 			verbosity := getDebugVerbosity()

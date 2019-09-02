@@ -10,10 +10,6 @@ import (
 	"unicode"
 )
 
-const (
-	debugEnvVarName = "KONFIG_DEBUG"
-)
-
 type flagValue struct{}
 
 func (v *flagValue) String() string {
@@ -25,7 +21,7 @@ func (v *flagValue) Set(string) error {
 }
 
 func getDebugVerbosity() uint {
-	val := os.Getenv(debugEnvVarName)
+	val := os.Getenv(debugEnvVar)
 	if val == "" {
 		return 0
 	}

@@ -25,6 +25,7 @@ const (
 	skip       = "-"
 
 	defaultInterval    = 10 * time.Second
+	debugEnvVar        = "KONFIG_DEBUG"
 	telepresenceEnvVar = "TELEPRESENCE_ROOT"
 
 	line = "----------------------------------------------------------------------------------------------------"
@@ -49,6 +50,7 @@ type Option func(*controller)
 
 // Debug is the option for enabling logs for debugging purposes.
 // verbosity is the verbosity level of logs.
+// You can also enable this option by setting KONFIG_DEBUG environment variable to a verbosity level.
 // You should not use this option in production.
 func Debug(verbosity uint) Option {
 	return func(c *controller) {
