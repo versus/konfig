@@ -917,9 +917,9 @@ func Watch(config sync.Locker, subscribers []chan Update, opts ...Option) (func(
 		ticker.Stop()
 
 		// TODO: closing subscriber channels causes data race if notifySubscribers is writing to any
-		for _, sub := range c.subscribers {
+		/* for _, sub := range c.subscribers {
 			close(sub)
-		}
+		} */
 	}
 
 	return stop, nil
