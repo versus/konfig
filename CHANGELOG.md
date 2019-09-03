@@ -1,5 +1,26 @@
 # Change Log
 
+## [v0.3.0](https://github.com/moorara/konfig/tree/v0.3.0) (2019-09-03)
+[Full Changelog](https://github.com/moorara/konfig/compare/v0.2.1...v0.3.0)
+
+**Closed issues:**
+
+- Migrate to New GitHub Actions [\#14](https://github.com/moorara/konfig/issues/14)
+
+**Merged pull requests:**
+
+- Add Go Doc and Go Report Card badges [\#23](https://github.com/moorara/konfig/pull/23) ([moorara](https://github.com/moorara))
+- Migrate to new GitHub actions and workflows [\#22](https://github.com/moorara/konfig/pull/22) ([moorara](https://github.com/moorara))
+- Add Watch example to README [\#21](https://github.com/moorara/konfig/pull/21) ([moorara](https://github.com/moorara))
+- Update Go Doc comments [\#20](https://github.com/moorara/konfig/pull/20) ([moorara](https://github.com/moorara))
+- Enable debugging logs using environment variable [\#19](https://github.com/moorara/konfig/pull/19) ([moorara](https://github.com/moorara))
+- Add watch [\#18](https://github.com/moorara/konfig/pull/18) ([moorara](https://github.com/moorara))
+- Improve parsing int and uint types [\#17](https://github.com/moorara/konfig/pull/17) ([moorara](https://github.com/moorara))
+- Add verbosity level for debug logs [\#16](https://github.com/moorara/konfig/pull/16) ([moorara](https://github.com/moorara))
+- More refactoring [\#12](https://github.com/moorara/konfig/pull/12) ([moorara](https://github.com/moorara))
+- Update module stretchr/testify to v1.4.0 [\#10](https://github.com/moorara/konfig/pull/10) ([renovate[bot]](https://github.com/apps/renovate))
+- Add Debug option [\#9](https://github.com/moorara/konfig/pull/9) ([moorara](https://github.com/moorara))
+
 ## [v0.2.1](https://github.com/moorara/konfig/tree/v0.2.1) (2019-07-10)
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.2.0...v0.2.1)
 
