@@ -1,3 +1,6 @@
+[![Go Doc][godoc-image]][godoc-url]
+[![Go Report Card][goreport-image]][goreport-url]
+
 # konfig
 
 This is a very minimal and unopinionated utility for reading configuration values
@@ -169,3 +172,9 @@ You can find an example of using `Watch()` method [here](./examples/3-watch).
 
 [Here](https://milad.dev/posts/dynamic-config-secret) you will find a real-world example of using `konfig.Watch()`
 for **dynamic configuration management** and **secret injection** for Go applications running in Kubernetes.
+
+
+[godoc-url]: https://godoc.org/github.com/moorara/konfig
+[godoc-image]: https://godoc.org/github.com/moorara/konfig?status.svg
+[goreport-url]: https://goreportcard.com/report/github.com/moorara/konfig
+[goreport-image]: https://goreportcard.com/badge/github.com/moorara/konfig
