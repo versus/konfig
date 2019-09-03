@@ -152,7 +152,7 @@ These options are helpers for specific situations and setups.
 |--------|-------------|---------|
 | `konfig.Debug()` | Printing debugging information | [example](./examples/2-debug), [blog](https://milad.dev/projects/konfig/#debugging) |
 | `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [blog](https://milad.dev/posts/telepresence-with-konfig) |
-| `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [example](./examples/3-watch) |
+| `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [example](./examples/3-watch), [blog](https://milad.dev/posts/dynamic-config-secret) |
 
 ### Debugging
 
@@ -166,3 +166,6 @@ konfig allows you to watch _configuration files_ and dynamically update your con
 
 When using `Watch()` method, your struct should have a `sync.Mutex` field on it for synchronization and preventing data races.
 You can find an example of using `Watch()` method [here](./examples/3-watch).
+
+[Here](https://milad.dev/posts/dynamic-config-secret) you will find a real-world example of using `konfig.Watch()`
+for **dynamic configuration management** and **secret injection** for Go applications running in Kubernetes.
