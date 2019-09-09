@@ -155,6 +155,9 @@ These options are helpers for specific situations and setups.
 | Option | Description | Example |
 |--------|-------------|---------|
 | `konfig.Debug()` | Printing debugging information | [example](./examples/2-debug), [blog](https://milad.dev/projects/konfig/#debugging) |
+| `konfig.PrefixFlag()` | Prefixing all flag names with a string | |
+| `konfig.PrefixEnv()` | Prefixing all environment variable names with a string | |
+| `konfig.PrefixFileEnv()` | Prefixing all file environment variable names with a string | |
 | `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [blog](https://milad.dev/posts/telepresence-with-konfig) |
 | `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [example](./examples/3-watch), [blog](https://milad.dev/posts/dynamic-config-secret) |
 

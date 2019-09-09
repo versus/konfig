@@ -116,6 +116,75 @@ func TestDebug(t *testing.T) {
 	}
 }
 
+func TestPrefixFlag(t *testing.T) {
+	tests := []struct {
+		c        *controller
+		prefix   string
+		expected *controller
+	}{
+		{
+			&controller{},
+			"config",
+			&controller{
+				flagPrefix: "config",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		opt := PrefixFlag(tc.prefix)
+		opt(tc.c)
+
+		assert.Equal(t, tc.expected, tc.c)
+	}
+}
+
+func TestPrefixEnv(t *testing.T) {
+	tests := []struct {
+		c        *controller
+		prefix   string
+		expected *controller
+	}{
+		{
+			&controller{},
+			"CONFIG",
+			&controller{
+				envPrefix: "CONFIG",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		opt := PrefixEnv(tc.prefix)
+		opt(tc.c)
+
+		assert.Equal(t, tc.expected, tc.c)
+	}
+}
+
+func TestPrefixFileEnv(t *testing.T) {
+	tests := []struct {
+		c        *controller
+		prefix   string
+		expected *controller
+	}{
+		{
+			&controller{},
+			"CONFIG",
+			&controller{
+				fileEnvPrefix: "CONFIG",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		opt := PrefixFileEnv(tc.prefix)
+		opt(tc.c)
+
+		assert.Equal(t, tc.expected, tc.c)
+	}
+}
+
 func TestTelepresence(t *testing.T) {
 	tests := []struct {
 		c        *controller
@@ -179,6 +248,27 @@ func TestString(t *testing.T) {
 			"Debug<2>",
 		},
 		{
+			"WithFlagPrefix",
+			&controller{
+				flagPrefix: "config",
+			},
+			"FlagPrefix<config>",
+		},
+		{
+			"WithEnvPrefix",
+			&controller{
+				envPrefix: "CONFIG",
+			},
+			"EnvPrefix<CONFIG>",
+		},
+		{
+			"WithFileEnvPrefix",
+			&controller{
+				fileEnvPrefix: "CONFIG",
+			},
+			"FileEnvPrefix<CONFIG>",
+		},
+		{
 			"WithTelepresence",
 			&controller{
 				telepresence: true,
@@ -206,6 +296,9 @@ func TestString(t *testing.T) {
 			"WithAll",
 			&controller{
 				debug:         2,
+				flagPrefix:    "config",
+				envPrefix:     "CONFIG",
+				fileEnvPrefix: "CONFIG",
 				telepresence:  true,
 				watchInterval: 5 * time.Second,
 				subscribers: []chan Update{
@@ -213,7 +306,7 @@ func TestString(t *testing.T) {
 					make(chan Update),
 				},
 			},
-			"Debug<2> + Telepresence + Watch<5s> + Subscribers<2>",
+			"Debug<2> + FlagPrefix<config> + EnvPrefix<CONFIG> + FileEnvPrefix<CONFIG> + Telepresence + Watch<5s> + Subscribers<2>",
 		},
 	}
 
@@ -1883,6 +1976,92 @@ func TestIterateOnFields(t *testing.T) {
 				"FIELD_INT_ARRAY_FILE", "FIELD_INT8_ARRAY_FILE", "FIELD_INT16_ARRAY_FILE", "FIELD_INT32_ARRAY_FILE", "FIELD_INT64_ARRAY_FILE",
 				"FIELD_UINT_ARRAY_FILE", "FIELD_UINT8_ARRAY_FILE", "FIELD_UINT16_ARRAY_FILE", "FIELD_UINT32_ARRAY_FILE", "FIELD_UINT64_ARRAY_FILE",
 				"FIELD_DURATION_ARRAY_FILE", "FIELD_URL_ARRAY_FILE",
+			},
+			expectedListSeps: []string{
+				",", ",", ",",
+				",",
+				",",
+				",", ",",
+				",", ",", ",", ",", ",",
+				",", ",", ",", ",", ",",
+				",", ",",
+				",",
+				",",
+				",", ",",
+				",", ",", ",", ",", ",",
+				",", ",", ",", ",", ",",
+				",", ",",
+			},
+			expectedError: nil,
+		},
+		{
+			name: "WithPrefix",
+			c: &controller{
+				flagPrefix:    "config.",
+				envPrefix:     "CONFIG_",
+				fileEnvPrefix: "CONFIG_",
+			},
+			config:         &config{},
+			expectedValues: []reflect.Value{},
+			expectedFieldNames: []string{
+				"SkipFlag", "SkipFlagEnv", "SkipFlagEnvFile",
+				"FieldString",
+				"FieldBool",
+				"FieldFloat32", "FieldFloat64",
+				"FieldInt", "FieldInt8", "FieldInt16", "FieldInt32", "FieldInt64",
+				"FieldUint", "FieldUint8", "FieldUint16", "FieldUint32", "FieldUint64",
+				"FieldDuration", "FieldURL",
+				"FieldStringArray",
+				"FieldBoolArray",
+				"FieldFloat32Array", "FieldFloat64Array",
+				"FieldIntArray", "FieldInt8Array", "FieldInt16Array", "FieldInt32Array", "FieldInt64Array",
+				"FieldUintArray", "FieldUint8Array", "FieldUint16Array", "FieldUint32Array", "FieldUint64Array",
+				"FieldDurationArray", "FieldURLArray",
+			},
+			expectedFlagNames: []string{
+				"-", "-", "-",
+				"config.field.string",
+				"config.field.bool",
+				"config.field.float32", "config.field.float64",
+				"config.field.int", "config.field.int8", "config.field.int16", "config.field.int32", "config.field.int64",
+				"config.field.uint", "config.field.uint8", "config.field.uint16", "config.field.uint32", "config.field.uint64",
+				"config.field.duration", "config.field.url",
+				"config.field.string.array",
+				"config.field.bool.array",
+				"config.field.float32.array", "config.field.float64.array",
+				"config.field.int.array", "config.field.int8.array", "config.field.int16.array", "config.field.int32.array", "config.field.int64.array",
+				"config.field.uint.array", "config.field.uint8.array", "config.field.uint16.array", "config.field.uint32.array", "config.field.uint64.array",
+				"config.field.duration.array", "config.field.url.array",
+			},
+			expectedEnvNames: []string{
+				"CONFIG_SKIP_FLAG", "-", "-",
+				"CONFIG_FIELD_STRING",
+				"CONFIG_FIELD_BOOL",
+				"CONFIG_FIELD_FLOAT32", "CONFIG_FIELD_FLOAT64",
+				"CONFIG_FIELD_INT", "CONFIG_FIELD_INT8", "CONFIG_FIELD_INT16", "CONFIG_FIELD_INT32", "CONFIG_FIELD_INT64",
+				"CONFIG_FIELD_UINT", "CONFIG_FIELD_UINT8", "CONFIG_FIELD_UINT16", "CONFIG_FIELD_UINT32", "CONFIG_FIELD_UINT64",
+				"CONFIG_FIELD_DURATION", "CONFIG_FIELD_URL",
+				"CONFIG_FIELD_STRING_ARRAY",
+				"CONFIG_FIELD_BOOL_ARRAY",
+				"CONFIG_FIELD_FLOAT32_ARRAY", "CONFIG_FIELD_FLOAT64_ARRAY",
+				"CONFIG_FIELD_INT_ARRAY", "CONFIG_FIELD_INT8_ARRAY", "CONFIG_FIELD_INT16_ARRAY", "CONFIG_FIELD_INT32_ARRAY", "CONFIG_FIELD_INT64_ARRAY",
+				"CONFIG_FIELD_UINT_ARRAY", "CONFIG_FIELD_UINT8_ARRAY", "CONFIG_FIELD_UINT16_ARRAY", "CONFIG_FIELD_UINT32_ARRAY", "CONFIG_FIELD_UINT64_ARRAY",
+				"CONFIG_FIELD_DURATION_ARRAY", "CONFIG_FIELD_URL_ARRAY",
+			},
+			expectedFileEnvNames: []string{
+				"CONFIG_SKIP_FLAG_FILE", "CONFIG_SKIP_FLAG_ENV_FILE", "-",
+				"CONFIG_FIELD_STRING_FILE",
+				"CONFIG_FIELD_BOOL_FILE",
+				"CONFIG_FIELD_FLOAT32_FILE", "CONFIG_FIELD_FLOAT64_FILE",
+				"CONFIG_FIELD_INT_FILE", "CONFIG_FIELD_INT8_FILE", "CONFIG_FIELD_INT16_FILE", "CONFIG_FIELD_INT32_FILE", "CONFIG_FIELD_INT64_FILE",
+				"CONFIG_FIELD_UINT_FILE", "CONFIG_FIELD_UINT8_FILE", "CONFIG_FIELD_UINT16_FILE", "CONFIG_FIELD_UINT32_FILE", "CONFIG_FIELD_UINT64_FILE",
+				"CONFIG_FIELD_DURATION_FILE", "CONFIG_FIELD_URL_FILE",
+				"CONFIG_FIELD_STRING_ARRAY_FILE",
+				"CONFIG_FIELD_BOOL_ARRAY_FILE",
+				"CONFIG_FIELD_FLOAT32_ARRAY_FILE", "CONFIG_FIELD_FLOAT64_ARRAY_FILE",
+				"CONFIG_FIELD_INT_ARRAY_FILE", "CONFIG_FIELD_INT8_ARRAY_FILE", "CONFIG_FIELD_INT16_ARRAY_FILE", "CONFIG_FIELD_INT32_ARRAY_FILE", "CONFIG_FIELD_INT64_ARRAY_FILE",
+				"CONFIG_FIELD_UINT_ARRAY_FILE", "CONFIG_FIELD_UINT8_ARRAY_FILE", "CONFIG_FIELD_UINT16_ARRAY_FILE", "CONFIG_FIELD_UINT32_ARRAY_FILE", "CONFIG_FIELD_UINT64_ARRAY_FILE",
+				"CONFIG_FIELD_DURATION_ARRAY_FILE", "CONFIG_FIELD_URL_ARRAY_FILE",
 			},
 			expectedListSeps: []string{
 				",", ",", ",",

@@ -40,6 +40,9 @@ type Update struct {
 // controller controls how configuration values are read
 type controller struct {
 	debug         uint
+	flagPrefix    string
+	envPrefix     string
+	fileEnvPrefix string
 	telepresence  bool
 	watchInterval time.Duration
 	subscribers   []chan Update
@@ -55,6 +58,27 @@ type Option func(*controller)
 func Debug(verbosity uint) Option {
 	return func(c *controller) {
 		c.debug = verbosity
+	}
+}
+
+// PrefixFlag is the option for prefixing all flag names with a given string
+func PrefixFlag(prefix string) Option {
+	return func(c *controller) {
+		c.flagPrefix = prefix
+	}
+}
+
+// PrefixEnv is the option for prefixing all environment variable names with a given string
+func PrefixEnv(prefix string) Option {
+	return func(c *controller) {
+		c.envPrefix = prefix
+	}
+}
+
+// PrefixFileEnv is the option for prefixing all file environment variable names with a given string
+func PrefixFileEnv(prefix string) Option {
+	return func(c *controller) {
+		c.fileEnvPrefix = prefix
 	}
 }
 
@@ -81,6 +105,18 @@ func (c *controller) String() string {
 
 	if c.debug > 0 {
 		strs = append(strs, fmt.Sprintf("Debug<%d>", c.debug))
+	}
+
+	if c.flagPrefix != "" {
+		strs = append(strs, fmt.Sprintf("FlagPrefix<%s>", c.flagPrefix))
+	}
+
+	if c.envPrefix != "" {
+		strs = append(strs, fmt.Sprintf("EnvPrefix<%s>", c.envPrefix))
+	}
+
+	if c.fileEnvPrefix != "" {
+		strs = append(strs, fmt.Sprintf("FileEnvPrefix<%s>", c.fileEnvPrefix))
 	}
 
 	if c.telepresence {
@@ -693,16 +729,28 @@ func (c *controller) iterateOnFields(vStruct reflect.Value, handle func(v reflec
 			flagName = getFlagName(f.Name)
 		}
 
+		if flagName != skip && c.flagPrefix != "" {
+			flagName = c.flagPrefix + flagName
+		}
+
 		// `env:"..."`
 		envName := f.Tag.Get(envTag)
 		if envName == "" {
 			envName = getEnvVarName(f.Name)
 		}
 
+		if envName != skip && c.envPrefix != "" {
+			envName = c.envPrefix + envName
+		}
+
 		// `fileenv:"..."`
 		fileEnvName := f.Tag.Get(fileEnvTag)
 		if fileEnvName == "" {
 			fileEnvName = getFileEnvVarName(f.Name)
+		}
+
+		if fileEnvName != skip && c.fileEnvPrefix != "" {
+			fileEnvName = c.fileEnvPrefix + fileEnvName
 		}
 
 		// `sep:"..."`
