@@ -1,3 +1,4 @@
+[![Go Doc][workflow-image]][workflow-url]
 [![Go Doc][godoc-image]][godoc-url]
 [![Go Report Card][goreport-image]][goreport-url]
 
@@ -174,6 +175,8 @@ You can find an example of using `Watch()` method [here](./examples/3-watch).
 for **dynamic configuration management** and **secret injection** for Go applications running in Kubernetes.
 
 
+[workflow-url]: https://github.com/moorara/konfig/actions
+[workflow-image]: https://github.com/moorara/konfig/workflows/Main/badge.svg
 [godoc-url]: https://godoc.org/github.com/moorara/konfig
 [godoc-image]: https://godoc.org/github.com/moorara/konfig?status.svg
 [goreport-url]: https://goreportcard.com/report/github.com/moorara/konfig
