@@ -1,5 +1,13 @@
 # Change Log
 
+## [v0.3.1](https://github.com/moorara/konfig/tree/v0.3.1) (2019-09-09)
+[Full Changelog](https://github.com/moorara/konfig/compare/v0.3.0...v0.3.1)
+
+**Merged pull requests:**
+
+- Add Prefix options [\#25](https://github.com/moorara/konfig/pull/25) ([moorara](https://github.com/moorara))
+- Add GitHub badge [\#24](https://github.com/moorara/konfig/pull/24) ([moorara](https://github.com/moorara))
+
 ## [v0.3.0](https://github.com/moorara/konfig/tree/v0.3.0) (2019-09-03)
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.2.1...v0.3.0)
 
