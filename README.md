@@ -158,6 +158,7 @@ These options are helpers for specific situations and setups.
 | `konfig.PrefixFlag()` | Prefixing all flag names with a string | |
 | `konfig.PrefixEnv()` | Prefixing all environment variable names with a string | |
 | `konfig.PrefixFileEnv()` | Prefixing all file environment variable names with a string | |
+| `konfig.ListSep()` | Specifying list separator for all fields with slice type | |
 | `konfig.SkipFlag()` | Skipping command-line flags as a source for all fields | |
 | `konfig.SkipEnv()` | Skipping environment variables as a source for all fields | |
 | `konfig.SkipFileEnv()` | Skipping file environment variables (and configuration files) as a source for all fields | |

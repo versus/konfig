@@ -31,18 +31,19 @@ const (
 	line = "----------------------------------------------------------------------------------------------------"
 )
 
-// Update represents a configuration field that received a new value
+// Update represents a configuration field that received a new value.
 type Update struct {
 	Name  string
 	Value interface{}
 }
 
-// controller controls how configuration values are read
+// controller controls how configuration values are read.
 type controller struct {
 	debug         uint
 	flagPrefix    string
 	envPrefix     string
 	fileEnvPrefix string
+	listSep       string
 	skipFlag      bool
 	skipEnv       bool
 	skipFileEnv   bool
@@ -51,7 +52,7 @@ type controller struct {
 	subscribers   []chan Update
 }
 
-// Option sets optional parameters for controller
+// Option sets optional parameters for controller.
 type Option func(*controller)
 
 // Debug is the option for enabling logs for debugging purposes.
@@ -64,42 +65,60 @@ func Debug(verbosity uint) Option {
 	}
 }
 
-// PrefixFlag is the option for prefixing all flag names with a given string
+// PrefixFlag is the option for prefixing all flag names with a given string.
+// You can specify a custom name for command-line flag for each field using `flag` struct tag.
+// Using `flag` struct tag for a field will override this option for that field.
 func PrefixFlag(prefix string) Option {
 	return func(c *controller) {
 		c.flagPrefix = prefix
 	}
 }
 
-// PrefixEnv is the option for prefixing all environment variable names with a given string
+// PrefixEnv is the option for prefixing all environment variable names with a given string.
+// You can specify a custom name for environment variable for each field using `env` struct tag.
+// Using `env` struct tag for a field will override this option for that field.
 func PrefixEnv(prefix string) Option {
 	return func(c *controller) {
 		c.envPrefix = prefix
 	}
 }
 
-// PrefixFileEnv is the option for prefixing all file environment variable names with a given string
+// PrefixFileEnv is the option for prefixing all file environment variable names with a given string.
+// You can specify a custom name for file environment variable for each field using `fileenv` struct tag.
+// Using `fileenv` struct tag for a field will override this option for that field.
 func PrefixFileEnv(prefix string) Option {
 	return func(c *controller) {
 		c.fileEnvPrefix = prefix
 	}
 }
 
-// SkipFlag is the option for skipping command-line flags as a source for all fields
+// ListSep is the option for specifying list separator for all fields with slice type.
+// You can specify a list separator for each field using `sep` struct tag.
+// Using `tag` struct tag for a field will override this option for that field.
+func ListSep(sep string) Option {
+	return func(c *controller) {
+		c.listSep = sep
+	}
+}
+
+// SkipFlag is the option for skipping command-line flags as a source for all fields.
+// You can skip command-line flag as a source for each field by setting `flag` struct tag to `-`.
 func SkipFlag() Option {
 	return func(c *controller) {
 		c.skipFlag = true
 	}
 }
 
-// SkipEnv is the option for skipping environment variables as a source for all fields
+// SkipEnv is the option for skipping environment variables as a source for all fields.
+// You can skip environment variables as a source for each field by setting `env` struct tag to `-`.
 func SkipEnv() Option {
 	return func(c *controller) {
 		c.skipEnv = true
 	}
 }
 
-// SkipFileEnv is the option for skipping file environment variables as a source for all fields
+// SkipFileEnv is the option for skipping file environment variables as a source for all fields.
+// You can skip file environment variable as a source for each field by setting `fileenv` struct tag to `-`.
 func SkipFileEnv() Option {
 	return func(c *controller) {
 		c.skipFileEnv = true
@@ -141,6 +160,10 @@ func (c *controller) String() string {
 
 	if c.fileEnvPrefix != "" {
 		strs = append(strs, fmt.Sprintf("FileEnvPrefix<%s>", c.fileEnvPrefix))
+	}
+
+	if c.listSep != "" {
+		strs = append(strs, fmt.Sprintf("ListSep<%s>", c.listSep))
 	}
 
 	if c.skipFlag {
@@ -761,36 +784,37 @@ func (c *controller) iterateOnFields(vStruct reflect.Value, handle func(v reflec
 
 		// `flag:"..."`
 		flagName := f.Tag.Get(flagTag)
-		if flagName == "" {
-			flagName = getFlagName(f.Name)
-		}
 
-		if flagName != skip && c.flagPrefix != "" {
-			flagName = c.flagPrefix + flagName
+		// Applying PrefixFlag option + Default flag name
+		if flagName == "" {
+			flagName = c.flagPrefix + getFlagName(f.Name)
 		}
 
 		// `env:"..."`
 		envName := f.Tag.Get(envTag)
-		if envName == "" {
-			envName = getEnvVarName(f.Name)
-		}
 
-		if envName != skip && c.envPrefix != "" {
-			envName = c.envPrefix + envName
+		// Applying PrefixEnv option + Default environment variable name
+		if envName == "" {
+			envName = c.envPrefix + getEnvVarName(f.Name)
 		}
 
 		// `fileenv:"..."`
 		fileEnvName := f.Tag.Get(fileEnvTag)
-		if fileEnvName == "" {
-			fileEnvName = getFileEnvVarName(f.Name)
-		}
 
-		if fileEnvName != skip && c.fileEnvPrefix != "" {
-			fileEnvName = c.fileEnvPrefix + fileEnvName
+		// Applying PrefixFileEnv option + Default file environment variable name
+		if fileEnvName == "" {
+			fileEnvName = c.fileEnvPrefix + getFileEnvVarName(f.Name)
 		}
 
 		// `sep:"..."`
 		listSep := f.Tag.Get(sepTag)
+
+		// Applying ListSep option
+		if listSep == "" {
+			listSep = c.listSep
+		}
+
+		// Default list separator
 		if listSep == "" {
 			listSep = ","
 		}
