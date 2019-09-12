@@ -43,6 +43,9 @@ type controller struct {
 	flagPrefix    string
 	envPrefix     string
 	fileEnvPrefix string
+	skipFlag      bool
+	skipEnv       bool
+	skipFileEnv   bool
 	telepresence  bool
 	watchInterval time.Duration
 	subscribers   []chan Update
@@ -79,6 +82,27 @@ func PrefixEnv(prefix string) Option {
 func PrefixFileEnv(prefix string) Option {
 	return func(c *controller) {
 		c.fileEnvPrefix = prefix
+	}
+}
+
+// SkipFlag is the option for skipping command-line flags as a source for all fields
+func SkipFlag() Option {
+	return func(c *controller) {
+		c.skipFlag = true
+	}
+}
+
+// SkipEnv is the option for skipping environment variables as a source for all fields
+func SkipEnv() Option {
+	return func(c *controller) {
+		c.skipEnv = true
+	}
+}
+
+// SkipFileEnv is the option for skipping file environment variables as a source for all fields
+func SkipFileEnv() Option {
+	return func(c *controller) {
+		c.skipFileEnv = true
 	}
 }
 
@@ -119,6 +143,18 @@ func (c *controller) String() string {
 		strs = append(strs, fmt.Sprintf("FileEnvPrefix<%s>", c.fileEnvPrefix))
 	}
 
+	if c.skipFlag {
+		strs = append(strs, "SkipFlag")
+	}
+
+	if c.skipEnv {
+		strs = append(strs, "SkipEnv")
+	}
+
+	if c.skipFileEnv {
+		strs = append(strs, "SkipFileEnv")
+	}
+
 	if c.telepresence {
 		strs = append(strs, "Telepresence")
 	}
@@ -152,19 +188,19 @@ func (c *controller) getFieldValue(fieldName, flagName, envName, fileEnvName str
 	var fromFile bool
 
 	// First, try reading from flag
-	if value == "" && flagName != skip {
+	if value == "" && flagName != skip && !c.skipFlag {
 		value = getFlagValue(flagName)
 		c.log(3, "[%s] value read from flag %s: %s", fieldName, flagName, value)
 	}
 
 	// Second, try reading from environment variable
-	if value == "" && envName != skip {
+	if value == "" && envName != skip && !c.skipEnv {
 		value = os.Getenv(envName)
 		c.log(3, "[%s] value read from environment variable %s: %s", fieldName, envName, value)
 	}
 
 	// Third, try reading from file
-	if value == "" && fileEnvName != skip {
+	if value == "" && fileEnvName != skip && !c.skipFileEnv {
 		// Read file environment variable
 		val := os.Getenv(fileEnvName)
 		c.log(3, "[%s] value read from file environment variable %s: %s", fieldName, fileEnvName, val)
