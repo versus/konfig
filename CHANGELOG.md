@@ -1,5 +1,13 @@
 # Change Log
 
+## [v0.3.2](https://github.com/moorara/konfig/tree/v0.3.2) (2019-09-12)
+[Full Changelog](https://github.com/moorara/konfig/compare/v0.3.1...v0.3.2)
+
+**Merged pull requests:**
+
+- Add ListSep Option [\#27](https://github.com/moorara/konfig/pull/27) ([moorara](https://github.com/moorara))
+- Add Skip options [\#26](https://github.com/moorara/konfig/pull/26) ([moorara](https://github.com/moorara))
+
 ## [v0.3.1](https://github.com/moorara/konfig/tree/v0.3.1) (2019-09-09)
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.3.0...v0.3.1)
 
