@@ -1,6 +1,8 @@
-[![Go Doc][workflow-image]][workflow-url]
 [![Go Doc][godoc-image]][godoc-url]
+[![Go Doc][workflow-image]][workflow-url]
 [![Go Report Card][goreport-image]][goreport-url]
+[![Test Coverage][coverage-image]][coverage-url]
+[![Maintainability][maintainability-image]][maintainability-url]
 
 # konfig
 
@@ -182,9 +184,13 @@ You can find an example of using `Watch()` method [here](./examples/3-watch).
 for **dynamic configuration management** and **secret injection** for Go applications running in Kubernetes.
 
 
-[workflow-url]: https://github.com/moorara/konfig/actions
-[workflow-image]: https://github.com/moorara/konfig/workflows/Main/badge.svg
 [godoc-url]: https://godoc.org/github.com/moorara/konfig
 [godoc-image]: https://godoc.org/github.com/moorara/konfig?status.svg
+[workflow-url]: https://github.com/moorara/konfig/actions
+[workflow-image]: https://github.com/moorara/konfig/workflows/Main/badge.svg
 [goreport-url]: https://goreportcard.com/report/github.com/moorara/konfig
 [goreport-image]: https://goreportcard.com/badge/github.com/moorara/konfig
+[coverage-url]: https://codeclimate.com/github/moorara/konfig/test_coverage
+[coverage-image]: https://api.codeclimate.com/v1/badges/207d8984d6121c11d9d6/test_coverage
+[maintainability-url]: https://codeclimate.com/github/moorara/konfig/maintainability
+[maintainability-image]: https://api.codeclimate.com/v1/badges/207d8984d6121c11d9d6/maintainability
