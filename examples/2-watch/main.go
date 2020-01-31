@@ -7,8 +7,8 @@ import (
 	"github.com/moorara/konfig"
 )
 
-// Global is the single source of truth for all configurations
-var Global = struct {
+// config is the single source of truth for all configurations
+var config = struct {
 	sync.Mutex
 	LogLevel string
 }{
@@ -21,28 +21,28 @@ func startLogging(logger *Logger) {
 	go func() {
 		t1 := time.NewTicker(500 * time.Millisecond)
 		for range t1.C {
-			logger.Debug("debugging this service!")
+			logger.Debug("Debugging ...")
 		}
 	}()
 
 	go func() {
 		t2 := time.NewTicker(1 * time.Second)
 		for range t2.C {
-			logger.Info("Just info level logging!")
+			logger.Info("Informing ...")
 		}
 	}()
 
 	go func() {
 		t3 := time.NewTicker(2 * time.Second)
 		for range t3.C {
-			logger.Warn("Warning!")
+			logger.Warn("Warning ...")
 		}
 	}()
 
 	go func() {
 		t4 := time.NewTicker(4 * time.Second)
 		for range t4.C {
-			logger.Error("Error happened!")
+			logger.Error("Erroring ...")
 		}
 	}()
 
@@ -57,15 +57,15 @@ func main() {
 	go func() {
 		for update := range ch {
 			if update.Name == "LogLevel" {
-				Global.Lock()
-				logger.SetLevel(Global.LogLevel)
-				Global.Unlock()
+				config.Lock()
+				logger.SetLevel(config.LogLevel)
+				config.Unlock()
 			}
 		}
 	}()
 
 	// Start watching for configurations values
-	stop, _ := konfig.Watch(&Global, []chan konfig.Update{ch}, konfig.WatchInterval(5*time.Second))
+	stop, _ := konfig.Watch(&config, []chan konfig.Update{ch}, konfig.WatchInterval(5*time.Second))
 	defer stop()
 
 	// Simulate logging

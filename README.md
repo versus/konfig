@@ -46,6 +46,10 @@ func main() {
 }
 ```
 
+## Examples & Demos
+
+You can find examples of using `konfig` alongside some demos [here](./examples).
+
 ## Documentation
 
 The precedence of sources for reading values is as follows:
