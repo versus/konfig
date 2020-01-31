@@ -833,9 +833,18 @@ func (c *controller) registerFlags(vStruct reflect.Value) {
 			return
 		}
 
+		var dataType string
+		if v.Kind() == reflect.Slice {
+			dataType = fmt.Sprintf("[]%s", reflect.TypeOf(v.Interface()).Elem())
+		} else {
+			dataType = v.Type().String()
+		}
+
 		defaultValue := fmt.Sprintf("%v", v.Interface())
+
 		usage := fmt.Sprintf(
-			"%s:\t\t\t\t%s\n%s:\t\t\t%s\n%s:\t%s",
+			"%s:\t\t\t\t%s\n%s:\t\t\t\t%s\n%s:\t\t\t%s\n%s:\t%s",
+			"data type", dataType,
 			"default value", defaultValue,
 			"environment variable", envName,
 			"environment variable for file path", fileEnvName,
