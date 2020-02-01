@@ -1,14 +1,45 @@
-# Change Log
+# Changelog
+
+## [v0.3.3](https://github.com/moorara/konfig/tree/v0.3.3) (2020-02-01)
+
+[Full Changelog](https://github.com/moorara/konfig/compare/v0.3.2...v0.3.3)
+
+**Implemented enhancements:**
+
+- Add data type to help description for configurations [\#36](https://github.com/moorara/konfig/issues/36)
+
+**Fixed bugs:**
+
+- Update GitHub Workflow and Fix Test Report [\#35](https://github.com/moorara/konfig/issues/35)
+
+**Closed issues:**
+
+- Update Documentation [\#37](https://github.com/moorara/konfig/issues/37)
+- Add Readme Badges [\#15](https://github.com/moorara/konfig/issues/15)
+
+**Merged pull requests:**
+
+- Update GitHub Workflow [\#41](https://github.com/moorara/konfig/pull/41) ([moorara](https://github.com/moorara))
+- Add data type to help description for flags [\#40](https://github.com/moorara/konfig/pull/40) ([moorara](https://github.com/moorara))
+- Update examples and add demos [\#39](https://github.com/moorara/konfig/pull/39) ([moorara](https://github.com/moorara))
+- Update push.yml [\#32](https://github.com/moorara/konfig/pull/32) ([moorara](https://github.com/moorara))
+- Fix Code Climate coverage percentage [\#31](https://github.com/moorara/konfig/pull/31) ([moorara](https://github.com/moorara))
+- Fix README badge [\#30](https://github.com/moorara/konfig/pull/30) ([moorara](https://github.com/moorara))
+- Add badges [\#29](https://github.com/moorara/konfig/pull/29) ([moorara](https://github.com/moorara))
+- Add Test Coverage Report [\#28](https://github.com/moorara/konfig/pull/28) ([moorara](https://github.com/moorara))
 
 ## [v0.3.2](https://github.com/moorara/konfig/tree/v0.3.2) (2019-09-12)
+
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.3.1...v0.3.2)
 
 **Merged pull requests:**
 
 - Add ListSep Option [\#27](https://github.com/moorara/konfig/pull/27) ([moorara](https://github.com/moorara))
 - Add Skip options [\#26](https://github.com/moorara/konfig/pull/26) ([moorara](https://github.com/moorara))
+- Migrate to new GitHub actions and workflows [\#22](https://github.com/moorara/konfig/pull/22) ([moorara](https://github.com/moorara))
 
 ## [v0.3.1](https://github.com/moorara/konfig/tree/v0.3.1) (2019-09-09)
+
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.3.0...v0.3.1)
 
 **Merged pull requests:**
@@ -17,6 +48,7 @@
 - Add GitHub badge [\#24](https://github.com/moorara/konfig/pull/24) ([moorara](https://github.com/moorara))
 
 ## [v0.3.0](https://github.com/moorara/konfig/tree/v0.3.0) (2019-09-03)
+
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.2.1...v0.3.0)
 
 **Closed issues:**
@@ -26,7 +58,6 @@
 **Merged pull requests:**
 
 - Add Go Doc and Go Report Card badges [\#23](https://github.com/moorara/konfig/pull/23) ([moorara](https://github.com/moorara))
-- Migrate to new GitHub actions and workflows [\#22](https://github.com/moorara/konfig/pull/22) ([moorara](https://github.com/moorara))
 - Add Watch example to README [\#21](https://github.com/moorara/konfig/pull/21) ([moorara](https://github.com/moorara))
 - Update Go Doc comments [\#20](https://github.com/moorara/konfig/pull/20) ([moorara](https://github.com/moorara))
 - Enable debugging logs using environment variable [\#19](https://github.com/moorara/konfig/pull/19) ([moorara](https://github.com/moorara))
@@ -38,6 +69,7 @@
 - Add Debug option [\#9](https://github.com/moorara/konfig/pull/9) ([moorara](https://github.com/moorara))
 
 ## [v0.2.1](https://github.com/moorara/konfig/tree/v0.2.1) (2019-07-10)
+
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.2.0...v0.2.1)
 
 **Merged pull requests:**
@@ -46,6 +78,7 @@
 - Add Option capability + Telepresence capability [\#7](https://github.com/moorara/konfig/pull/7) ([moorara](https://github.com/moorara))
 
 ## [v0.2.0](https://github.com/moorara/konfig/tree/v0.2.0) (2019-07-10)
+
 [Full Changelog](https://github.com/moorara/konfig/compare/v0.1.0...v0.2.0)
 
 **Merged pull requests:**
@@ -53,14 +86,17 @@
 - Clarify flag package and -help option [\#6](https://github.com/moorara/konfig/pull/6) ([moorara](https://github.com/moorara))
 - BREAKING: change file tag to fileenv tag [\#5](https://github.com/moorara/konfig/pull/5) ([moorara](https://github.com/moorara))
 - Improve PickAndLog logs [\#4](https://github.com/moorara/konfig/pull/4) ([moorara](https://github.com/moorara))
+- Configure Renovate [\#2](https://github.com/moorara/konfig/pull/2) ([renovate[bot]](https://github.com/apps/renovate))
 
 ## [v0.1.0](https://github.com/moorara/konfig/tree/v0.1.0) (2019-07-10)
+
+[Full Changelog](https://github.com/moorara/konfig/compare/b431dbb676c8db79ee382fac16d3f40536ad572d...v0.1.0)
+
 **Merged pull requests:**
 
 - Add GitHub files [\#3](https://github.com/moorara/konfig/pull/3) ([moorara](https://github.com/moorara))
-- Configure Renovate [\#2](https://github.com/moorara/konfig/pull/2) ([renovate[bot]](https://github.com/apps/renovate))
 - Bootstrap 🚀 [\#1](https://github.com/moorara/konfig/pull/1) ([moorara](https://github.com/moorara))
 
 
 
-\* *This Change Log was automatically generated by [github_changelog_generator](https://github.com/skywinder/Github-Changelog-Generator)*
+\* *This Changelog was automatically generated by [github_changelog_generator](https://github.com/github-changelog-generator/github-changelog-generator)*
