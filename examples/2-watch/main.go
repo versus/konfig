@@ -65,8 +65,8 @@ func main() {
 	}()
 
 	// Start watching for configurations values
-	stop, _ := konfig.Watch(&config, []chan konfig.Update{ch}, konfig.WatchInterval(5*time.Second))
-	defer stop()
+	close, _ := konfig.Watch(&config, []chan konfig.Update{ch})
+	defer close()
 
 	// Simulate logging
 	startLogging(logger)

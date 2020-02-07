@@ -118,7 +118,7 @@ In the example above, `Database` will be read from either:
   3. The file specified by environment variable `CONFIG_DATABASE_FILE_PATH`
   4. The default value set on struct instance
 
-### Using flag Package
+### Using `flag` Package
 
 `konfig` plays nice with `flag` package since it does NOT use `flag` package for parsing command-line flags.
 That means you can define, parse, and use your own flags using built-in `flag` package.
@@ -155,27 +155,36 @@ you will see `-enabled` and `-log.level` flags are also added with descriptions!
 
 ### Options
 
-You can pass a list of options to `Pick`.
-These options are helpers for specific situations and setups.
+Options are helpers for specific situations and setups.
+You can pass a list of options to `Pick` and `Watch` methods.
+If you want to test or debug something and you don't want to make code changes, you can set options through environment variables as well.
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `konfig.Debug()` | Printing debugging information | [example](./examples/2-debug), [blog](https://milad.dev/projects/konfig/#debugging) |
-| `konfig.PrefixFlag()` | Prefixing all flag names with a string | |
-| `konfig.PrefixEnv()` | Prefixing all environment variable names with a string | |
-| `konfig.PrefixFileEnv()` | Prefixing all file environment variable names with a string | |
-| `konfig.ListSep()` | Specifying list separator for all fields with slice type | |
-| `konfig.SkipFlag()` | Skipping command-line flags as a source for all fields | |
-| `konfig.SkipEnv()` | Skipping environment variables as a source for all fields | |
-| `konfig.SkipFileEnv()` | Skipping file environment variables (and configuration files) as a source for all fields | |
-| `konfig.Telepresence()` | Reading configuration files in a _Telepresence_ environment | [blog](https://milad.dev/posts/telepresence-with-konfig) |
-| `konfig.WatchInterval()` | Overriding default interval for `Watch()` method | [example](./examples/3-watch), [blog](https://milad.dev/posts/dynamic-config-secret) |
+| Option | Environment Variable | Description |
+|--------|----------------------|-------------|
+| `konfig.Debug()` | `KONFIG_DEBUG` | Printing debugging information. |
+| `konfig.ListSep()` | `KONFIG_LIST_SEP` | Specifying list separator for all fields with slice type. |
+| `konfig.SkipFlag()` | `KONFIG_SKIP_FLAG` | Skipping command-line flags as a source for all fields. |
+| `konfig.SkipEnv()` | `KONFIG_SKIP_ENV` | Skipping environment variables as a source for all fields .|
+| `konfig.SkipFileEnv()` | `KONFIG_SKIP_FILE_ENV` | Skipping file environment variables (and configuration files) as a source for all fields. |
+| `konfig.PrefixFlag()` | `KONFIG_PREFIX_FLAG` | Prefixing all flag names with a string. |
+| `konfig.PrefixEnv()` | `KONFIG_PREFIX_ENV` | Prefixing all environment variable names with a string. |
+| `konfig.PrefixFileEnv()` | `KONFIG_PREFIX_FILE_ENV` | Prefixing all file environment variable names with a string. |
+| `konfig.Telepresence()` | `KONFIG_TELEPRESENCE` | Reading configuration files in a _Telepresence_ environment. |
 
 ### Debugging
 
 If for any reason the configuration values are not read as you expected, you can view the debugging logs.
 You can enable debugging logs either by using `Debug` option or by setting `KONFIG_DEBUG` environment variable.
 In both cases you need to specify a verbosity level for logs.
+
+| Level | Descriptions                                               |
+|-------|------------------------------------------------------------|
+| `0`   | No logging (default).                                      |
+| `1`   | Logging all errors.                                        |
+| `2`   | Logging initialization information.                        |
+| `3`   | Logging information related to new values read from files. |
+| `4`   | Logging information related to notifying subscribers.      |
+| `5`   | Logging information related to setting values of fields.   |
 
 ### Watching Changes
 

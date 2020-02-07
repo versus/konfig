@@ -15,18 +15,27 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 const (
-	flagTag    = "flag"
-	envTag     = "env"
-	fileEnvTag = "fileenv"
-	sepTag     = "sep"
 	skip       = "-"
+	tagFlag    = "flag"
+	tagEnv     = "env"
+	tagFileEnv = "fileenv"
+	tagSep     = "sep"
 
-	defaultInterval    = 10 * time.Second
-	debugEnvVar        = "KONFIG_DEBUG"
-	telepresenceEnvVar = "TELEPRESENCE_ROOT"
+	envDebug            = "KONFIG_DEBUG"
+	envListSep          = "KONFIG_LIST_SEP"
+	envSkipFlag         = "KONFIG_SKIP_FLAG"
+	envSkipEnv          = "KONFIG_SKIP_ENV"
+	envSkipFileEnv      = "KONFIG_SKIP_FILE_ENV"
+	envPrefixFlag       = "KONFIG_PREFIX_FLAG"
+	envPrefixEnv        = "KONFIG_PREFIX_ENV"
+	envPrefixFileEnv    = "KONFIG_PREFIX_FILE_ENV"
+	envTelepresence     = "KONFIG_TELEPRESENCE"
+	envTelepresenceRoot = "TELEPRESENCE_ROOT"
 
 	line = "----------------------------------------------------------------------------------------------------"
 )
@@ -37,19 +46,84 @@ type Update struct {
 	Value interface{}
 }
 
+// fieldInfo has all the information for setting a struct field later.
+type fieldInfo struct {
+	v       reflect.Value
+	name    string
+	listSep string
+}
+
 // controller controls how configuration values are read.
 type controller struct {
 	debug         uint
-	flagPrefix    string
-	envPrefix     string
-	fileEnvPrefix string
 	listSep       string
 	skipFlag      bool
 	skipEnv       bool
 	skipFileEnv   bool
+	prefixFlag    string
+	prefixEnv     string
+	prefixFileEnv string
 	telepresence  bool
-	watchInterval time.Duration
+
 	subscribers   []chan Update
+	filesToFields map[string]fieldInfo
+}
+
+// controllerFromEnv creates a new controller with defaults and with options read from environment variables.
+func controllerFromEnv() *controller {
+	var debug uint
+	if str := os.Getenv(envDebug); str != "" {
+		// debug verbosity level should not be higher than 255 (8-bits)
+		if u, err := strconv.ParseUint(str, 10, 8); err == nil {
+			debug = uint(u)
+		}
+	}
+
+	listSep := os.Getenv(envListSep)
+
+	// Set the default list separator
+	if listSep == "" {
+		listSep = ","
+	}
+
+	var skipFlag bool
+	if str := os.Getenv(envSkipFlag); str != "" {
+		skipFlag, _ = strconv.ParseBool(str)
+	}
+
+	var skipEnv bool
+	if str := os.Getenv(envSkipEnv); str != "" {
+		skipEnv, _ = strconv.ParseBool(str)
+	}
+
+	var skipFileEnv bool
+	if str := os.Getenv(envSkipFileEnv); str != "" {
+		skipFileEnv, _ = strconv.ParseBool(str)
+	}
+
+	prefixFlag := os.Getenv(envPrefixFlag)
+	prefixEnv := os.Getenv(envPrefixEnv)
+	prefixFileEnv := os.Getenv(envPrefixFileEnv)
+
+	var telepresence bool
+	if str := os.Getenv(envTelepresence); str != "" {
+		telepresence, _ = strconv.ParseBool(str)
+	}
+
+	return &controller{
+		debug:         debug,
+		listSep:       listSep,
+		skipFlag:      skipFlag,
+		skipEnv:       skipEnv,
+		skipFileEnv:   skipFileEnv,
+		prefixFlag:    prefixFlag,
+		prefixEnv:     prefixEnv,
+		prefixFileEnv: prefixFileEnv,
+		telepresence:  telepresence,
+
+		subscribers:   nil,
+		filesToFields: map[string]fieldInfo{},
+	}
 }
 
 // Option sets optional parameters for controller.
@@ -62,33 +136,6 @@ type Option func(*controller)
 func Debug(verbosity uint) Option {
 	return func(c *controller) {
 		c.debug = verbosity
-	}
-}
-
-// PrefixFlag is the option for prefixing all flag names with a given string.
-// You can specify a custom name for command-line flag for each field using `flag` struct tag.
-// Using `flag` struct tag for a field will override this option for that field.
-func PrefixFlag(prefix string) Option {
-	return func(c *controller) {
-		c.flagPrefix = prefix
-	}
-}
-
-// PrefixEnv is the option for prefixing all environment variable names with a given string.
-// You can specify a custom name for environment variable for each field using `env` struct tag.
-// Using `env` struct tag for a field will override this option for that field.
-func PrefixEnv(prefix string) Option {
-	return func(c *controller) {
-		c.envPrefix = prefix
-	}
-}
-
-// PrefixFileEnv is the option for prefixing all file environment variable names with a given string.
-// You can specify a custom name for file environment variable for each field using `fileenv` struct tag.
-// Using `fileenv` struct tag for a field will override this option for that field.
-func PrefixFileEnv(prefix string) Option {
-	return func(c *controller) {
-		c.fileEnvPrefix = prefix
 	}
 }
 
@@ -125,19 +172,39 @@ func SkipFileEnv() Option {
 	}
 }
 
+// PrefixFlag is the option for prefixing all flag names with a given string.
+// You can specify a custom name for command-line flag for each field using `flag` struct tag.
+// Using `flag` struct tag for a field will override this option for that field.
+func PrefixFlag(prefix string) Option {
+	return func(c *controller) {
+		c.prefixFlag = prefix
+	}
+}
+
+// PrefixEnv is the option for prefixing all environment variable names with a given string.
+// You can specify a custom name for environment variable for each field using `env` struct tag.
+// Using `env` struct tag for a field will override this option for that field.
+func PrefixEnv(prefix string) Option {
+	return func(c *controller) {
+		c.prefixEnv = prefix
+	}
+}
+
+// PrefixFileEnv is the option for prefixing all file environment variable names with a given string.
+// You can specify a custom name for file environment variable for each field using `fileenv` struct tag.
+// Using `fileenv` struct tag for a field will override this option for that field.
+func PrefixFileEnv(prefix string) Option {
+	return func(c *controller) {
+		c.prefixFileEnv = prefix
+	}
+}
+
 // Telepresence is the option for reading files when running in a Telepresence shell.
 // If the TELEPRESENCE_ROOT environment variable exist, files will be read from mounted volume.
 // See https://telepresence.io/howto/volumes.html for details.
 func Telepresence() Option {
 	return func(c *controller) {
 		c.telepresence = true
-	}
-}
-
-// WatchInterval is the option for overriding the default interval (10s) for watching.
-func WatchInterval(d time.Duration) Option {
-	return func(c *controller) {
-		c.watchInterval = d
 	}
 }
 
@@ -148,18 +215,6 @@ func (c *controller) String() string {
 
 	if c.debug > 0 {
 		strs = append(strs, fmt.Sprintf("Debug<%d>", c.debug))
-	}
-
-	if c.flagPrefix != "" {
-		strs = append(strs, fmt.Sprintf("FlagPrefix<%s>", c.flagPrefix))
-	}
-
-	if c.envPrefix != "" {
-		strs = append(strs, fmt.Sprintf("EnvPrefix<%s>", c.envPrefix))
-	}
-
-	if c.fileEnvPrefix != "" {
-		strs = append(strs, fmt.Sprintf("FileEnvPrefix<%s>", c.fileEnvPrefix))
 	}
 
 	if c.listSep != "" {
@@ -178,12 +233,20 @@ func (c *controller) String() string {
 		strs = append(strs, "SkipFileEnv")
 	}
 
-	if c.telepresence {
-		strs = append(strs, "Telepresence")
+	if c.prefixFlag != "" {
+		strs = append(strs, fmt.Sprintf("PrefixFlag<%s>", c.prefixFlag))
 	}
 
-	if c.watchInterval > 0 {
-		strs = append(strs, fmt.Sprintf("Watch<%s>", c.watchInterval))
+	if c.prefixEnv != "" {
+		strs = append(strs, fmt.Sprintf("PrefixEnv<%s>", c.prefixEnv))
+	}
+
+	if c.prefixFileEnv != "" {
+		strs = append(strs, fmt.Sprintf("PrefixFileEnv<%s>", c.prefixFileEnv))
+	}
+
+	if c.telepresence {
+		strs = append(strs, "Telepresence")
 	}
 
 	if len(c.subscribers) > 0 {
@@ -194,72 +257,65 @@ func (c *controller) String() string {
 }
 
 func (c *controller) log(v uint, msg string, args ...interface{}) {
-	if c.debug >= v {
+	if v <= c.debug {
 		log.Printf(msg+"\n", args...)
 	}
 }
 
-/*
- * getFieldValue reads and returns the string value for a field from either
- *   - command-line flags,
- *   - environment variables,
- *   - or configuration files
- * If the value is read from a file, the second returned value will be true.
- */
-func (c *controller) getFieldValue(fieldName, flagName, envName, fileEnvName string) (string, bool) {
-	var value string
-	var fromFile bool
+// getFieldValue reads and returns the string value for a field from either
+//   - command-line flags,
+//   - environment variables,
+//   - or configuration files
+// If the value is read from a file, the second returned value will be the file path.
+func (c *controller) getFieldValue(fieldName, flagName, envName, fileEnvName string) (string, string) {
+	var value, filePath string
 
 	// First, try reading from flag
 	if value == "" && flagName != skip && !c.skipFlag {
 		value = getFlagValue(flagName)
-		c.log(3, "[%s] value read from flag %s: %s", fieldName, flagName, value)
+		c.log(5, "[%s] value read from flag %s: %s", fieldName, flagName, value)
 	}
 
 	// Second, try reading from environment variable
 	if value == "" && envName != skip && !c.skipEnv {
 		value = os.Getenv(envName)
-		c.log(3, "[%s] value read from environment variable %s: %s", fieldName, envName, value)
+		c.log(5, "[%s] value read from environment variable %s: %s", fieldName, envName, value)
 	}
 
 	// Third, try reading from file
 	if value == "" && fileEnvName != skip && !c.skipFileEnv {
 		// Read file environment variable
-		val := os.Getenv(fileEnvName)
-		c.log(3, "[%s] value read from file environment variable %s: %s", fieldName, fileEnvName, val)
+		filePath = os.Getenv(fileEnvName)
+		c.log(5, "[%s] value read from file environment variable %s: %s", fieldName, fileEnvName, filePath)
 
-		if val != "" {
-			root := "/"
-
+		if filePath != "" {
 			// Check for Telepresence
 			// See https://telepresence.io/howto/volumes.html for details
 			if c.telepresence {
-				if tr := os.Getenv(telepresenceEnvVar); tr != "" {
-					root = tr
-					c.log(3, "[%s] telepresence root path: %s", fieldName, tr)
+				if mountPath := os.Getenv(envTelepresenceRoot); mountPath != "" {
+					filePath = filepath.Join(mountPath, filePath)
+					c.log(5, "[%s] telepresence mount path: %s", fieldName, mountPath)
 				}
 			}
 
 			// Read config file
-			file := filepath.Join(root, val)
-			content, err := ioutil.ReadFile(file)
-			if err == nil {
-				value = string(content)
-				fromFile = true
-				c.log(3, "[%s] value read from file %s: %s", fieldName, file, value)
+			if b, err := ioutil.ReadFile(filePath); err == nil {
+				value = string(b)
+				c.log(5, "[%s] value read from %s: %s", fieldName, filePath, value)
 			}
 		}
 	}
 
-	return value, fromFile
+	return value, filePath
 }
 
+// notifySubscribers sends an update to every subscriber channel in a new go routine.
 func (c *controller) notifySubscribers(name string, value interface{}) {
 	if len(c.subscribers) == 0 {
 		return
 	}
 
-	c.log(1, "[%s] notifying %d subscribers ...", name, len(c.subscribers))
+	c.log(4, "[%s] notifying %d subscribers ...", name, len(c.subscribers))
 
 	update := Update{
 		Name:  name,
@@ -268,16 +324,16 @@ func (c *controller) notifySubscribers(name string, value interface{}) {
 
 	for i, sub := range c.subscribers {
 		go func(id int, ch chan Update) {
-			c.log(1, "[%s] notifying subscriber %d ...", name, id)
+			c.log(4, "[%s] notifying subscriber %d ...", name, id)
 			ch <- update
-			c.log(1, "[%s] subscriber %d notified", name, id)
+			c.log(4, "[%s] subscriber %d notified", name, id)
 		}(i, sub)
 	}
 }
 
 func (c *controller) setString(v reflect.Value, name, val string) bool {
 	if v.String() != val {
-		c.log(2, "[%s] setting string value: %s", name, val)
+		c.log(5, "[%s] setting string value: %s", name, val)
 		v.SetString(val)
 		c.notifySubscribers(name, val)
 		return true
@@ -289,7 +345,7 @@ func (c *controller) setString(v reflect.Value, name, val string) bool {
 func (c *controller) setBool(v reflect.Value, name, val string) bool {
 	if b, err := strconv.ParseBool(val); err == nil {
 		if v.Bool() != b {
-			c.log(2, "[%s] setting boolean value: %t", name, b)
+			c.log(5, "[%s] setting boolean value: %t", name, b)
 			v.SetBool(b)
 			c.notifySubscribers(name, b)
 			return true
@@ -302,7 +358,7 @@ func (c *controller) setBool(v reflect.Value, name, val string) bool {
 func (c *controller) setFloat32(v reflect.Value, name, val string) bool {
 	if f, err := strconv.ParseFloat(val, 32); err == nil {
 		if v.Float() != f {
-			c.log(2, "[%s] setting float value: %f", name, f)
+			c.log(5, "[%s] setting float value: %f", name, f)
 			v.SetFloat(f)
 			c.notifySubscribers(name, float32(f))
 			return true
@@ -315,7 +371,7 @@ func (c *controller) setFloat32(v reflect.Value, name, val string) bool {
 func (c *controller) setFloat64(v reflect.Value, name, val string) bool {
 	if f, err := strconv.ParseFloat(val, 64); err == nil {
 		if v.Float() != f {
-			c.log(2, "[%s] setting float value: %f", name, f)
+			c.log(5, "[%s] setting float value: %f", name, f)
 			v.SetFloat(f)
 			c.notifySubscribers(name, f)
 			return true
@@ -329,7 +385,7 @@ func (c *controller) setInt(v reflect.Value, name, val string) bool {
 	// int size and range are platform-dependent
 	if i, err := strconv.ParseInt(val, 10, 64); err == nil {
 		if v.Int() != i {
-			c.log(2, "[%s] setting integer value: %d", name, i)
+			c.log(5, "[%s] setting integer value: %d", name, i)
 			v.SetInt(i)
 			c.notifySubscribers(name, int(i))
 			return true
@@ -342,7 +398,7 @@ func (c *controller) setInt(v reflect.Value, name, val string) bool {
 func (c *controller) setInt8(v reflect.Value, name, val string) bool {
 	if i, err := strconv.ParseInt(val, 10, 8); err == nil {
 		if v.Int() != i {
-			c.log(2, "[%s] setting integer value: %d", name, i)
+			c.log(5, "[%s] setting integer value: %d", name, i)
 			v.SetInt(i)
 			c.notifySubscribers(name, int8(i))
 			return true
@@ -355,7 +411,7 @@ func (c *controller) setInt8(v reflect.Value, name, val string) bool {
 func (c *controller) setInt16(v reflect.Value, name, val string) bool {
 	if i, err := strconv.ParseInt(val, 10, 16); err == nil {
 		if v.Int() != i {
-			c.log(2, "[%s] setting integer value: %d", name, i)
+			c.log(5, "[%s] setting integer value: %d", name, i)
 			v.SetInt(i)
 			c.notifySubscribers(name, int16(i))
 			return true
@@ -368,7 +424,7 @@ func (c *controller) setInt16(v reflect.Value, name, val string) bool {
 func (c *controller) setInt32(v reflect.Value, name, val string) bool {
 	if i, err := strconv.ParseInt(val, 10, 32); err == nil {
 		if v.Int() != i {
-			c.log(2, "[%s] setting integer value: %d", name, i)
+			c.log(5, "[%s] setting integer value: %d", name, i)
 			v.SetInt(i)
 			c.notifySubscribers(name, int32(i))
 			return true
@@ -383,7 +439,7 @@ func (c *controller) setInt64(v reflect.Value, name, val string) bool {
 		// time.Duration
 		if d, err := time.ParseDuration(val); err == nil {
 			if v.Interface() != d {
-				c.log(2, "[%s] setting duration value: %s", name, d)
+				c.log(5, "[%s] setting duration value: %s", name, d)
 				v.Set(reflect.ValueOf(d))
 				c.notifySubscribers(name, d)
 				return true
@@ -391,7 +447,7 @@ func (c *controller) setInt64(v reflect.Value, name, val string) bool {
 		}
 	} else if i, err := strconv.ParseInt(val, 10, 64); err == nil {
 		if v.Int() != i {
-			c.log(2, "[%s] setting integer value: %d", name, i)
+			c.log(5, "[%s] setting integer value: %d", name, i)
 			v.SetInt(i)
 			c.notifySubscribers(name, i)
 			return true
@@ -405,7 +461,7 @@ func (c *controller) setUint(v reflect.Value, name, val string) bool {
 	// uint size and range are platform-dependent
 	if u, err := strconv.ParseUint(val, 10, 64); err == nil {
 		if v.Uint() != u {
-			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			c.log(5, "[%s] setting unsigned integer value: %d", name, u)
 			v.SetUint(u)
 			c.notifySubscribers(name, uint(u))
 			return true
@@ -418,7 +474,7 @@ func (c *controller) setUint(v reflect.Value, name, val string) bool {
 func (c *controller) setUint8(v reflect.Value, name, val string) bool {
 	if u, err := strconv.ParseUint(val, 10, 8); err == nil {
 		if v.Uint() != u {
-			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			c.log(5, "[%s] setting unsigned integer value: %d", name, u)
 			v.SetUint(u)
 			c.notifySubscribers(name, uint8(u))
 			return true
@@ -431,7 +487,7 @@ func (c *controller) setUint8(v reflect.Value, name, val string) bool {
 func (c *controller) setUint16(v reflect.Value, name, val string) bool {
 	if u, err := strconv.ParseUint(val, 10, 16); err == nil {
 		if v.Uint() != u {
-			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			c.log(5, "[%s] setting unsigned integer value: %d", name, u)
 			v.SetUint(u)
 			c.notifySubscribers(name, uint16(u))
 			return true
@@ -444,7 +500,7 @@ func (c *controller) setUint16(v reflect.Value, name, val string) bool {
 func (c *controller) setUint32(v reflect.Value, name, val string) bool {
 	if u, err := strconv.ParseUint(val, 10, 32); err == nil {
 		if v.Uint() != u {
-			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			c.log(5, "[%s] setting unsigned integer value: %d", name, u)
 			v.SetUint(u)
 			c.notifySubscribers(name, uint32(u))
 			return true
@@ -457,7 +513,7 @@ func (c *controller) setUint32(v reflect.Value, name, val string) bool {
 func (c *controller) setUint64(v reflect.Value, name, val string) bool {
 	if u, err := strconv.ParseUint(val, 10, 64); err == nil {
 		if v.Uint() != u {
-			c.log(2, "[%s] setting unsigned integer value: %d", name, u)
+			c.log(5, "[%s] setting unsigned integer value: %d", name, u)
 			v.SetUint(u)
 			c.notifySubscribers(name, u)
 			return true
@@ -473,7 +529,7 @@ func (c *controller) setStruct(v reflect.Value, name, val string) bool {
 		if u, err := url.Parse(val); err == nil {
 			// u is a pointer
 			if !reflect.DeepEqual(v.Interface(), *u) {
-				c.log(2, "[%s] setting url value: %s", name, val)
+				c.log(5, "[%s] setting url value: %s", name, val)
 				v.Set(reflect.ValueOf(u).Elem())
 				c.notifySubscribers(name, *u)
 				return true
@@ -486,7 +542,7 @@ func (c *controller) setStruct(v reflect.Value, name, val string) bool {
 
 func (c *controller) setStringSlice(v reflect.Value, name string, vals []string) bool {
 	if !reflect.DeepEqual(v.Interface(), vals) {
-		c.log(2, "[%s] setting string slice: %v", name, vals)
+		c.log(5, "[%s] setting string slice: %v", name, vals)
 		v.Set(reflect.ValueOf(vals))
 		c.notifySubscribers(name, vals)
 		return true
@@ -504,7 +560,7 @@ func (c *controller) setBoolSlice(v reflect.Value, name string, vals []string) b
 	}
 
 	if !reflect.DeepEqual(v.Interface(), bools) {
-		c.log(2, "[%s] setting boolean slice: %v", name, bools)
+		c.log(5, "[%s] setting boolean slice: %v", name, bools)
 		v.Set(reflect.ValueOf(bools))
 		c.notifySubscribers(name, bools)
 		return true
@@ -522,7 +578,7 @@ func (c *controller) setFloat32Slice(v reflect.Value, name string, vals []string
 	}
 
 	if !reflect.DeepEqual(v.Interface(), floats) {
-		c.log(2, "[%s] setting float32 slice: %v", name, floats)
+		c.log(5, "[%s] setting float32 slice: %v", name, floats)
 		v.Set(reflect.ValueOf(floats))
 		c.notifySubscribers(name, floats)
 		return true
@@ -540,7 +596,7 @@ func (c *controller) setFloat64Slice(v reflect.Value, name string, vals []string
 	}
 
 	if !reflect.DeepEqual(v.Interface(), floats) {
-		c.log(2, "[%s] setting float64 slice: %v", name, floats)
+		c.log(5, "[%s] setting float64 slice: %v", name, floats)
 		v.Set(reflect.ValueOf(floats))
 		c.notifySubscribers(name, floats)
 		return true
@@ -559,7 +615,7 @@ func (c *controller) setIntSlice(v reflect.Value, name string, vals []string) bo
 	}
 
 	if !reflect.DeepEqual(v.Interface(), ints) {
-		c.log(2, "[%s] setting int slice: %v", name, ints)
+		c.log(5, "[%s] setting int slice: %v", name, ints)
 		v.Set(reflect.ValueOf(ints))
 		c.notifySubscribers(name, ints)
 		return true
@@ -577,7 +633,7 @@ func (c *controller) setInt8Slice(v reflect.Value, name string, vals []string) b
 	}
 
 	if !reflect.DeepEqual(v.Interface(), ints) {
-		c.log(2, "[%s] setting int8 slice: %v", name, ints)
+		c.log(5, "[%s] setting int8 slice: %v", name, ints)
 		v.Set(reflect.ValueOf(ints))
 		c.notifySubscribers(name, ints)
 		return true
@@ -595,7 +651,7 @@ func (c *controller) setInt16Slice(v reflect.Value, name string, vals []string) 
 	}
 
 	if !reflect.DeepEqual(v.Interface(), ints) {
-		c.log(2, "[%s] setting int16 slice: %v", name, ints)
+		c.log(5, "[%s] setting int16 slice: %v", name, ints)
 		v.Set(reflect.ValueOf(ints))
 		c.notifySubscribers(name, ints)
 		return true
@@ -613,7 +669,7 @@ func (c *controller) setInt32Slice(v reflect.Value, name string, vals []string) 
 	}
 
 	if !reflect.DeepEqual(v.Interface(), ints) {
-		c.log(2, "[%s] setting int32 slice: %v", name, ints)
+		c.log(5, "[%s] setting int32 slice: %v", name, ints)
 		v.Set(reflect.ValueOf(ints))
 		c.notifySubscribers(name, ints)
 		return true
@@ -633,7 +689,7 @@ func (c *controller) setInt64Slice(v reflect.Value, name string, vals []string) 
 
 		// []time.Duration
 		if !reflect.DeepEqual(v.Interface(), durations) {
-			c.log(2, "[%s] setting duration slice: %v", name, durations)
+			c.log(5, "[%s] setting duration slice: %v", name, durations)
 			v.Set(reflect.ValueOf(durations))
 			c.notifySubscribers(name, durations)
 			return true
@@ -647,7 +703,7 @@ func (c *controller) setInt64Slice(v reflect.Value, name string, vals []string) 
 		}
 
 		if !reflect.DeepEqual(v.Interface(), ints) {
-			c.log(2, "[%s] setting int64 slice: %v", name, ints)
+			c.log(5, "[%s] setting int64 slice: %v", name, ints)
 			v.Set(reflect.ValueOf(ints))
 			c.notifySubscribers(name, ints)
 			return true
@@ -667,7 +723,7 @@ func (c *controller) setUintSlice(v reflect.Value, name string, vals []string) b
 	}
 
 	if !reflect.DeepEqual(v.Interface(), uints) {
-		c.log(2, "[%s] setting uint slice: %v", name, uints)
+		c.log(5, "[%s] setting uint slice: %v", name, uints)
 		v.Set(reflect.ValueOf(uints))
 		c.notifySubscribers(name, uints)
 		return true
@@ -685,7 +741,7 @@ func (c *controller) setUint8Slice(v reflect.Value, name string, vals []string) 
 	}
 
 	if !reflect.DeepEqual(v.Interface(), uints) {
-		c.log(2, "[%s] setting uint8 slice: %v", name, uints)
+		c.log(5, "[%s] setting uint8 slice: %v", name, uints)
 		v.Set(reflect.ValueOf(uints))
 		c.notifySubscribers(name, uints)
 		return true
@@ -703,7 +759,7 @@ func (c *controller) setUint16Slice(v reflect.Value, name string, vals []string)
 	}
 
 	if !reflect.DeepEqual(v.Interface(), uints) {
-		c.log(2, "[%s] setting uint16 slice: %v", name, uints)
+		c.log(5, "[%s] setting uint16 slice: %v", name, uints)
 		v.Set(reflect.ValueOf(uints))
 		c.notifySubscribers(name, uints)
 		return true
@@ -721,7 +777,7 @@ func (c *controller) setUint32Slice(v reflect.Value, name string, vals []string)
 	}
 
 	if !reflect.DeepEqual(v.Interface(), uints) {
-		c.log(2, "[%s] setting uint32 slice: %v", name, uints)
+		c.log(5, "[%s] setting uint32 slice: %v", name, uints)
 		v.Set(reflect.ValueOf(uints))
 		c.notifySubscribers(name, uints)
 		return true
@@ -739,7 +795,7 @@ func (c *controller) setUint64Slice(v reflect.Value, name string, vals []string)
 	}
 
 	if !reflect.DeepEqual(v.Interface(), uints) {
-		c.log(2, "[%s] setting uint64 slice: %v", name, uints)
+		c.log(5, "[%s] setting uint64 slice: %v", name, uints)
 		v.Set(reflect.ValueOf(uints))
 		c.notifySubscribers(name, uints)
 		return true
@@ -761,10 +817,84 @@ func (c *controller) setURLSlice(v reflect.Value, name string, vals []string) bo
 
 		// []url.URL
 		if !reflect.DeepEqual(v.Interface(), urls) {
-			c.log(2, "[%s] setting url slice: %v", name, urls)
+			c.log(5, "[%s] setting url slice: %v", name, urls)
 			v.Set(reflect.ValueOf(urls))
 			c.notifySubscribers(name, urls)
 			return true
+		}
+	}
+
+	return false
+}
+
+func (c *controller) setField(f fieldInfo, val string) bool {
+	switch f.v.Kind() {
+	case reflect.String:
+		return c.setString(f.v, f.name, val)
+	case reflect.Bool:
+		return c.setBool(f.v, f.name, val)
+	case reflect.Float32:
+		return c.setFloat32(f.v, f.name, val)
+	case reflect.Float64:
+		return c.setFloat64(f.v, f.name, val)
+	case reflect.Int:
+		return c.setInt(f.v, f.name, val)
+	case reflect.Int8:
+		return c.setInt8(f.v, f.name, val)
+	case reflect.Int16:
+		return c.setInt16(f.v, f.name, val)
+	case reflect.Int32:
+		return c.setInt32(f.v, f.name, val)
+	case reflect.Int64:
+		return c.setInt64(f.v, f.name, val)
+	case reflect.Uint:
+		return c.setUint(f.v, f.name, val)
+	case reflect.Uint8:
+		return c.setUint8(f.v, f.name, val)
+	case reflect.Uint16:
+		return c.setUint16(f.v, f.name, val)
+	case reflect.Uint32:
+		return c.setUint32(f.v, f.name, val)
+	case reflect.Uint64:
+		return c.setUint64(f.v, f.name, val)
+	case reflect.Struct:
+		return c.setStruct(f.v, f.name, val)
+
+	case reflect.Slice:
+		tSlice := reflect.TypeOf(f.v.Interface()).Elem()
+		vals := strings.Split(val, f.listSep)
+
+		switch tSlice.Kind() {
+		case reflect.String:
+			return c.setStringSlice(f.v, f.name, vals)
+		case reflect.Bool:
+			return c.setBoolSlice(f.v, f.name, vals)
+		case reflect.Float32:
+			return c.setFloat32Slice(f.v, f.name, vals)
+		case reflect.Float64:
+			return c.setFloat64Slice(f.v, f.name, vals)
+		case reflect.Int:
+			return c.setIntSlice(f.v, f.name, vals)
+		case reflect.Int8:
+			return c.setInt8Slice(f.v, f.name, vals)
+		case reflect.Int16:
+			return c.setInt16Slice(f.v, f.name, vals)
+		case reflect.Int32:
+			return c.setInt32Slice(f.v, f.name, vals)
+		case reflect.Int64:
+			return c.setInt64Slice(f.v, f.name, vals)
+		case reflect.Uint:
+			return c.setUintSlice(f.v, f.name, vals)
+		case reflect.Uint8:
+			return c.setUint8Slice(f.v, f.name, vals)
+		case reflect.Uint16:
+			return c.setUint16Slice(f.v, f.name, vals)
+		case reflect.Uint32:
+			return c.setUint32Slice(f.v, f.name, vals)
+		case reflect.Uint64:
+			return c.setUint64Slice(f.v, f.name, vals)
+		case reflect.Struct:
+			return c.setURLSlice(f.v, f.name, vals)
 		}
 	}
 
@@ -783,40 +913,27 @@ func (c *controller) iterateOnFields(vStruct reflect.Value, handle func(v reflec
 		}
 
 		// `flag:"..."`
-		flagName := f.Tag.Get(flagTag)
-
-		// Applying PrefixFlag option + Default flag name
+		flagName := f.Tag.Get(tagFlag)
 		if flagName == "" {
-			flagName = c.flagPrefix + getFlagName(f.Name)
+			flagName = c.prefixFlag + getFlagName(f.Name)
 		}
 
 		// `env:"..."`
-		envName := f.Tag.Get(envTag)
-
-		// Applying PrefixEnv option + Default environment variable name
+		envName := f.Tag.Get(tagEnv)
 		if envName == "" {
-			envName = c.envPrefix + getEnvVarName(f.Name)
+			envName = c.prefixEnv + getEnvVarName(f.Name)
 		}
 
 		// `fileenv:"..."`
-		fileEnvName := f.Tag.Get(fileEnvTag)
-
-		// Applying PrefixFileEnv option + Default file environment variable name
+		fileEnvName := f.Tag.Get(tagFileEnv)
 		if fileEnvName == "" {
-			fileEnvName = c.fileEnvPrefix + getFileEnvVarName(f.Name)
+			fileEnvName = c.prefixFileEnv + getFileEnvVarName(f.Name)
 		}
 
 		// `sep:"..."`
-		listSep := f.Tag.Get(sepTag)
-
-		// Applying ListSep option
+		listSep := f.Tag.Get(tagSep)
 		if listSep == "" {
 			listSep = c.listSep
-		}
-
-		// Default list separator
-		if listSep == "" {
-			listSep = ","
 		}
 
 		handle(v, f.Name, flagName, envName, fileEnvName, listSep)
@@ -824,9 +941,8 @@ func (c *controller) iterateOnFields(vStruct reflect.Value, handle func(v reflec
 }
 
 func (c *controller) registerFlags(vStruct reflect.Value) {
-	c.log(3, "Registering configuration flags ...")
-	c.log(3, line)
-	defer c.log(3, line)
+	c.log(2, "Registering configuration flags ...")
+	c.log(2, line)
 
 	c.iterateOnFields(vStruct, func(v reflect.Value, fieldName, flagName, envName, fileEnvName, listSep string) {
 		if flagName == skip {
@@ -860,121 +976,51 @@ func (c *controller) registerFlags(vStruct reflect.Value) {
 			}
 		}
 
-		c.log(3, "[%s] flag registered: %s", fieldName, flagName)
+		c.log(5, "[%s] flag registered: %s", fieldName, flagName)
 	})
+
+	c.log(5, line)
 }
 
-func (c *controller) readConfig(vStruct reflect.Value, watchMode bool) {
-	if watchMode {
-		c.log(2, "watching for new configurations ...")
-	} else {
-		c.log(2, "Reading configuration values ...")
-	}
-
+func (c *controller) readFields(vStruct reflect.Value) {
+	c.log(2, "Reading configuration values ...")
 	c.log(2, line)
 
 	c.iterateOnFields(vStruct, func(v reflect.Value, fieldName, flagName, envName, fileEnvName, listSep string) {
-		c.log(3, "[%s] expecting flag name: %s", fieldName, flagName)
-		c.log(3, "[%s] expecting environment variable name: %s", fieldName, envName)
-		c.log(3, "[%s] expecting file environment variable name: %s", fieldName, fileEnvName)
-		c.log(3, "[%s] expecting list separator: %s", fieldName, listSep)
-		defer c.log(2, line)
+		c.log(5, "[%s] expecting flag name: %s", fieldName, flagName)
+		c.log(5, "[%s] expecting environment variable name: %s", fieldName, envName)
+		c.log(5, "[%s] expecting file environment variable name: %s", fieldName, fileEnvName)
+		c.log(5, "[%s] expecting list separator: %s", fieldName, listSep)
+		defer c.log(5, line)
 
 		// Try reading the configuration value for current field
-		val, fromFile := c.getFieldValue(fieldName, flagName, envName, fileEnvName)
+		val, path := c.getFieldValue(fieldName, flagName, envName, fileEnvName)
 
 		// If no value, skip this field
 		if val == "" {
-			c.log(2, "[%s] falling back to default value: %v", fieldName, v.Interface())
+			c.log(5, "[%s] falling back to default value: %v", fieldName, v.Interface())
 			return
 		}
 
-		// Only those configuration values read from files can recieve new values
-		// In watch mode, if the value for a field is not read from a file, skip the field
-		if watchMode && !fromFile {
-			return
+		f := fieldInfo{
+			v:       v,
+			name:    fieldName,
+			listSep: listSep,
 		}
 
-		switch v.Kind() {
-		case reflect.String:
-			c.setString(v, fieldName, val)
-		case reflect.Bool:
-			c.setBool(v, fieldName, val)
-		case reflect.Float32:
-			c.setFloat32(v, fieldName, val)
-		case reflect.Float64:
-			c.setFloat64(v, fieldName, val)
-		case reflect.Int:
-			c.setInt(v, fieldName, val)
-		case reflect.Int8:
-			c.setInt8(v, fieldName, val)
-		case reflect.Int16:
-			c.setInt16(v, fieldName, val)
-		case reflect.Int32:
-			c.setInt32(v, fieldName, val)
-		case reflect.Int64:
-			c.setInt64(v, fieldName, val)
-		case reflect.Uint:
-			c.setUint(v, fieldName, val)
-		case reflect.Uint8:
-			c.setUint8(v, fieldName, val)
-		case reflect.Uint16:
-			c.setUint16(v, fieldName, val)
-		case reflect.Uint32:
-			c.setUint32(v, fieldName, val)
-		case reflect.Uint64:
-			c.setUint64(v, fieldName, val)
-		case reflect.Struct:
-			c.setStruct(v, fieldName, val)
-
-		case reflect.Slice:
-			tSlice := reflect.TypeOf(v.Interface()).Elem()
-			vals := strings.Split(val, listSep)
-
-			switch tSlice.Kind() {
-			case reflect.String:
-				c.setStringSlice(v, fieldName, vals)
-			case reflect.Bool:
-				c.setBoolSlice(v, fieldName, vals)
-			case reflect.Float32:
-				c.setFloat32Slice(v, fieldName, vals)
-			case reflect.Float64:
-				c.setFloat64Slice(v, fieldName, vals)
-			case reflect.Int:
-				c.setIntSlice(v, fieldName, vals)
-			case reflect.Int8:
-				c.setInt8Slice(v, fieldName, vals)
-			case reflect.Int16:
-				c.setInt16Slice(v, fieldName, vals)
-			case reflect.Int32:
-				c.setInt32Slice(v, fieldName, vals)
-			case reflect.Int64:
-				c.setInt64Slice(v, fieldName, vals)
-			case reflect.Uint:
-				c.setUintSlice(v, fieldName, vals)
-			case reflect.Uint8:
-				c.setUint8Slice(v, fieldName, vals)
-			case reflect.Uint16:
-				c.setUint16Slice(v, fieldName, vals)
-			case reflect.Uint32:
-				c.setUint32Slice(v, fieldName, vals)
-			case reflect.Uint64:
-				c.setUint64Slice(v, fieldName, vals)
-			case reflect.Struct:
-				c.setURLSlice(v, fieldName, vals)
-			}
+		// Keep the track of which fields are read from which files
+		if path != "" {
+			c.filesToFields[path] = f
 		}
+
+		c.setField(f, val)
 	})
 }
 
 // Pick reads values for exported fields of a struct from either command-line flags, environment variables, or configuration files.
 // You can also specify default values.
 func Pick(config interface{}, opts ...Option) error {
-	c := &controller{
-		debug: getDebugVerbosity(),
-	}
-
-	// Applying options
+	c := controllerFromEnv()
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -985,11 +1031,12 @@ func Pick(config interface{}, opts ...Option) error {
 
 	v, err := validateStruct(config)
 	if err != nil {
+		c.log(1, err.Error())
 		return err
 	}
 
 	c.registerFlags(v)
-	c.readConfig(v, false)
+	c.readFields(v)
 
 	return nil
 }
@@ -997,13 +1044,8 @@ func Pick(config interface{}, opts ...Option) error {
 // Watch first reads values for exported fields of a struct from either command-line flags, environment variables, or configuration files.
 // It then watches any change to those fields that their values are read from configuration files and notifies subscribers on a channel.
 func Watch(config sync.Locker, subscribers []chan Update, opts ...Option) (func(), error) {
-	c := &controller{
-		debug:         getDebugVerbosity(),
-		watchInterval: defaultInterval,
-		subscribers:   subscribers,
-	}
-
-	// Applying options
+	c := controllerFromEnv()
+	c.subscribers = subscribers
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -1014,30 +1056,61 @@ func Watch(config sync.Locker, subscribers []chan Update, opts ...Option) (func(
 
 	v, err := validateStruct(config)
 	if err != nil {
+		c.log(1, err.Error())
 		return nil, err
 	}
 
 	c.registerFlags(v)
-	c.readConfig(v, false)
+	c.readFields(v)
 
-	ticker := time.NewTicker(c.watchInterval)
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		c.log(1, "cannot create a watcher: %s", err)
+		return nil, err
+	}
 
 	go func() {
-		for range ticker.C {
-			config.Lock()
-			c.readConfig(v, true)
-			config.Unlock()
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					break
+				}
+
+				if event.Op&fsnotify.Write > 0 {
+					if f, ok := c.filesToFields[event.Name]; ok {
+						if b, err := ioutil.ReadFile(event.Name); err == nil {
+							val := string(b)
+							c.log(3, "received an update from %s: %s", event.Name, val)
+							config.Lock()
+							c.setField(f, val)
+							config.Unlock()
+						}
+					}
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					break
+				}
+				c.log(1, "error watching: %s", err)
+			}
 		}
 	}()
 
-	stop := func() {
-		ticker.Stop()
+	for f := range c.filesToFields {
+		if err := watcher.Add(f); err != nil {
+			c.log(1, "cannot watch file %s: %s", f, err)
+			return nil, err
+		}
+	}
 
+	close := func() {
+		watcher.Close()
 		// TODO: closing subscriber channels causes data race if notifySubscribers is writing to any
 		/* for _, sub := range c.subscribers {
 			close(sub)
 		} */
 	}
 
-	return stop, nil
+	return close, nil
 }

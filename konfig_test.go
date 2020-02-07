@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -93,6 +94,318 @@ func configEqual(c1, c2 *config) bool {
 		reflect.DeepEqual(c1.FieldURLArray, c2.FieldURLArray)
 }
 
+func TestControllerFromEnv(t *testing.T) {
+	tests := []struct {
+		name               string
+		env                map[string]string
+		expectedController *controller
+	}{
+		{
+			name: "NoOption",
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "InvalidDebug",
+			env: map[string]string{
+				envDebug: "NaN",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "OutOfRangeDebug",
+			env: map[string]string{
+				envDebug: "999",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "DebugLevel1",
+			env: map[string]string{
+				envDebug: "1",
+			},
+			expectedController: &controller{
+				debug:         1,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "DebugLevel2",
+			env: map[string]string{
+				envDebug: "2",
+			},
+			expectedController: &controller{
+				debug:         2,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "DebugLevel3",
+			env: map[string]string{
+				envDebug: "3",
+			},
+			expectedController: &controller{
+				debug:         3,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "ListSep",
+			env: map[string]string{
+				envListSep: "|",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       "|",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "SkipFlag",
+			env: map[string]string{
+				envSkipFlag: "true",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      true,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "SkipEnv",
+			env: map[string]string{
+				envSkipEnv: "true",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       true,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "SkipEnvFile",
+			env: map[string]string{
+				envSkipFileEnv: "true",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   true,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "PrefixFlag",
+			env: map[string]string{
+				envPrefixFlag: "config.",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "config.",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "PrefixEnv",
+			env: map[string]string{
+				envPrefixEnv: "CONFIG_",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "CONFIG_",
+				prefixFileEnv: "",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "PrefixEnv",
+			env: map[string]string{
+				envPrefixFileEnv: "CONFIG_",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "CONFIG_",
+				telepresence:  false,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "Telepresence",
+			env: map[string]string{
+				envTelepresence: "true",
+			},
+			expectedController: &controller{
+				debug:         0,
+				listSep:       ",",
+				skipFlag:      false,
+				skipEnv:       false,
+				skipFileEnv:   false,
+				prefixFlag:    "",
+				prefixEnv:     "",
+				prefixFileEnv: "",
+				telepresence:  true,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+		{
+			name: "AllOptions",
+			env: map[string]string{
+				envDebug:         "3",
+				envListSep:       "|",
+				envSkipFlag:      "true",
+				envSkipEnv:       "true",
+				envSkipFileEnv:   "true",
+				envPrefixFlag:    "config.",
+				envPrefixEnv:     "CONFIG_",
+				envPrefixFileEnv: "CONFIG_",
+				envTelepresence:  "true",
+			},
+			expectedController: &controller{
+				debug:         3,
+				listSep:       "|",
+				skipFlag:      true,
+				skipEnv:       true,
+				skipFileEnv:   true,
+				prefixFlag:    "config.",
+				prefixEnv:     "CONFIG_",
+				prefixFileEnv: "CONFIG_",
+				telepresence:  true,
+				subscribers:   nil,
+				filesToFields: map[string]fieldInfo{},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for name, value := range tc.env {
+				err := os.Setenv(name, value)
+				assert.NoError(t, err)
+				defer os.Unsetenv(name)
+			}
+
+			c := controllerFromEnv()
+			assert.Equal(t, tc.expectedController, c)
+		})
+	}
+}
+
 func TestDebug(t *testing.T) {
 	tests := []struct {
 		c         *controller
@@ -110,75 +423,6 @@ func TestDebug(t *testing.T) {
 
 	for _, tc := range tests {
 		opt := Debug(tc.verbosity)
-		opt(tc.c)
-
-		assert.Equal(t, tc.expected, tc.c)
-	}
-}
-
-func TestPrefixFlag(t *testing.T) {
-	tests := []struct {
-		c        *controller
-		prefix   string
-		expected *controller
-	}{
-		{
-			&controller{},
-			"config.",
-			&controller{
-				flagPrefix: "config.",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		opt := PrefixFlag(tc.prefix)
-		opt(tc.c)
-
-		assert.Equal(t, tc.expected, tc.c)
-	}
-}
-
-func TestPrefixEnv(t *testing.T) {
-	tests := []struct {
-		c        *controller
-		prefix   string
-		expected *controller
-	}{
-		{
-			&controller{},
-			"CONFIG_",
-			&controller{
-				envPrefix: "CONFIG_",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		opt := PrefixEnv(tc.prefix)
-		opt(tc.c)
-
-		assert.Equal(t, tc.expected, tc.c)
-	}
-}
-
-func TestPrefixFileEnv(t *testing.T) {
-	tests := []struct {
-		c        *controller
-		prefix   string
-		expected *controller
-	}{
-		{
-			&controller{},
-			"CONFIG_",
-			&controller{
-				fileEnvPrefix: "CONFIG_",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		opt := PrefixFileEnv(tc.prefix)
 		opt(tc.c)
 
 		assert.Equal(t, tc.expected, tc.c)
@@ -271,6 +515,75 @@ func TestSkipFileEnv(t *testing.T) {
 	}
 }
 
+func TestPrefixFlag(t *testing.T) {
+	tests := []struct {
+		c        *controller
+		prefix   string
+		expected *controller
+	}{
+		{
+			&controller{},
+			"config.",
+			&controller{
+				prefixFlag: "config.",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		opt := PrefixFlag(tc.prefix)
+		opt(tc.c)
+
+		assert.Equal(t, tc.expected, tc.c)
+	}
+}
+
+func TestPrefixEnv(t *testing.T) {
+	tests := []struct {
+		c        *controller
+		prefix   string
+		expected *controller
+	}{
+		{
+			&controller{},
+			"CONFIG_",
+			&controller{
+				prefixEnv: "CONFIG_",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		opt := PrefixEnv(tc.prefix)
+		opt(tc.c)
+
+		assert.Equal(t, tc.expected, tc.c)
+	}
+}
+
+func TestPrefixFileEnv(t *testing.T) {
+	tests := []struct {
+		c        *controller
+		prefix   string
+		expected *controller
+	}{
+		{
+			&controller{},
+			"CONFIG_",
+			&controller{
+				prefixFileEnv: "CONFIG_",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		opt := PrefixFileEnv(tc.prefix)
+		opt(tc.c)
+
+		assert.Equal(t, tc.expected, tc.c)
+	}
+}
+
 func TestTelepresence(t *testing.T) {
 	tests := []struct {
 		c        *controller
@@ -286,29 +599,6 @@ func TestTelepresence(t *testing.T) {
 
 	for _, tc := range tests {
 		opt := Telepresence()
-		opt(tc.c)
-
-		assert.Equal(t, tc.expected, tc.c)
-	}
-}
-
-func TestWatchInterval(t *testing.T) {
-	tests := []struct {
-		c        *controller
-		d        time.Duration
-		expected *controller
-	}{
-		{
-			&controller{},
-			10 * time.Second,
-			&controller{
-				watchInterval: 10 * time.Second,
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		opt := WatchInterval(tc.d)
 		opt(tc.c)
 
 		assert.Equal(t, tc.expected, tc.c)
@@ -334,27 +624,6 @@ func TestString(t *testing.T) {
 			"Debug<2>",
 		},
 		{
-			"WithFlagPrefix",
-			&controller{
-				flagPrefix: "config",
-			},
-			"FlagPrefix<config>",
-		},
-		{
-			"WithEnvPrefix",
-			&controller{
-				envPrefix: "CONFIG",
-			},
-			"EnvPrefix<CONFIG>",
-		},
-		{
-			"WithFileEnvPrefix",
-			&controller{
-				fileEnvPrefix: "CONFIG",
-			},
-			"FileEnvPrefix<CONFIG>",
-		},
-		{
 			"WithListSep",
 			&controller{
 				listSep: "|",
@@ -362,21 +631,42 @@ func TestString(t *testing.T) {
 			"ListSep<|>",
 		},
 		{
-			"SkipFlag",
+			"WithPrefixFlag",
+			&controller{
+				prefixFlag: "config.",
+			},
+			"PrefixFlag<config.>",
+		},
+		{
+			"WithPrefixEnv",
+			&controller{
+				prefixEnv: "CONFIG_",
+			},
+			"PrefixEnv<CONFIG_>",
+		},
+		{
+			"WithprefixFileEnv",
+			&controller{
+				prefixFileEnv: "CONFIG_",
+			},
+			"PrefixFileEnv<CONFIG_>",
+		},
+		{
+			"WithSkipFlag",
 			&controller{
 				skipFlag: true,
 			},
 			"SkipFlag",
 		},
 		{
-			"SkipEnv",
+			"WithSkipEnv",
 			&controller{
 				skipEnv: true,
 			},
 			"SkipEnv",
 		},
 		{
-			"SkipFileEnv",
+			"WithSkipFileEnv",
 			&controller{
 				skipFileEnv: true,
 			},
@@ -388,13 +678,6 @@ func TestString(t *testing.T) {
 				telepresence: true,
 			},
 			"Telepresence",
-		},
-		{
-			"WithWatchInterval",
-			&controller{
-				watchInterval: 5 * time.Second,
-			},
-			"Watch<5s>",
 		},
 		{
 			"WithSubscribers",
@@ -410,21 +693,20 @@ func TestString(t *testing.T) {
 			"WithAll",
 			&controller{
 				debug:         2,
-				flagPrefix:    "config.",
-				envPrefix:     "CONFIG_",
-				fileEnvPrefix: "CONFIG_",
 				listSep:       "|",
+				prefixFlag:    "config.",
+				prefixEnv:     "CONFIG_",
+				prefixFileEnv: "CONFIG_",
 				skipFlag:      true,
 				skipEnv:       true,
 				skipFileEnv:   true,
 				telepresence:  true,
-				watchInterval: 5 * time.Second,
 				subscribers: []chan Update{
 					make(chan Update),
 					make(chan Update),
 				},
 			},
-			"Debug<2> + FlagPrefix<config.> + EnvPrefix<CONFIG_> + FileEnvPrefix<CONFIG_> + ListSep<|> + SkipFlag + SkipEnv + SkipFileEnv + Telepresence + Watch<5s> + Subscribers<2>",
+			"Debug<2> + ListSep<|> + SkipFlag + SkipEnv + SkipFileEnv + PrefixFlag<config.> + PrefixEnv<CONFIG_> + PrefixFileEnv<CONFIG_> + Telepresence + Subscribers<2>",
 		},
 	}
 
@@ -489,7 +771,7 @@ func TestGetFieldValue(t *testing.T) {
 		fieldName, flagName, envName, fileEnvName string
 		c                                         *controller
 		expectedValue                             string
-		expectedFromFile                          bool
+		expectFilePath                            bool
 	}{
 		{
 			"SkipFlag",
@@ -649,9 +931,9 @@ func TestGetFieldValue(t *testing.T) {
 
 			// Testing Telepresence option
 			if tc.c.telepresence {
-				err := os.Setenv(telepresenceEnvVar, "/")
+				err := os.Setenv(envTelepresenceRoot, "/")
 				assert.NoError(t, err)
-				defer os.Unsetenv(telepresenceEnvVar)
+				defer os.Unsetenv(envTelepresenceRoot)
 			}
 
 			// Write value in a temporary config file
@@ -671,9 +953,11 @@ func TestGetFieldValue(t *testing.T) {
 			defer os.Unsetenv(tc.fileConfig.varName)
 
 			// Verify
-			value, fromFile := tc.c.getFieldValue(tc.fieldName, tc.flagName, tc.envName, tc.fileEnvName)
+			value, filePath := tc.c.getFieldValue(tc.fieldName, tc.flagName, tc.envName, tc.fileEnvName)
 			assert.Equal(t, tc.expectedValue, value)
-			assert.Equal(t, tc.expectedFromFile, fromFile)
+			if tc.expectFilePath {
+				assert.Equal(t, tmpfile.Name(), filePath)
+			}
 		})
 	}
 }
@@ -753,17 +1037,17 @@ func TestSetString(t *testing.T) {
 			c:              &controller{},
 			field:          "",
 			fieldName:      "Field",
-			fieldValue:     "milad",
-			expectedValue:  "milad",
+			fieldValue:     "test",
+			expectedValue:  "test",
 			expectedResult: true,
 		},
 		{
 			name:           "NoNewValue",
 			c:              &controller{},
-			field:          "milad",
+			field:          "test",
 			fieldName:      "Field",
-			fieldValue:     "milad",
-			expectedValue:  "milad",
+			fieldValue:     "test",
+			expectedValue:  "test",
 			expectedResult: false,
 		},
 	}
@@ -2055,6 +2339,266 @@ func TestSetURLSlice(t *testing.T) {
 	}
 }
 
+func TestSetField(t *testing.T) {
+	d90m := 90 * time.Minute
+	d120m := 120 * time.Minute
+	d4h := 4 * time.Hour
+	d8h := 8 * time.Hour
+
+	service1URL, _ := url.Parse("service-1:8080")
+	service2URL, _ := url.Parse("service-2:8080")
+	service3URL, _ := url.Parse("service-3:8080")
+	service4URL, _ := url.Parse("service-4:8080")
+
+	tests := []struct {
+		name           string
+		c              *controller
+		config         *config
+		values         map[string]string
+		expectedResult bool
+		expectedConfig *config
+	}{
+		{
+			"NewValues",
+			&controller{},
+			&config{
+				FieldString:        "default",
+				FieldBool:          false,
+				FieldFloat32:       3.1415,
+				FieldFloat64:       3.14159265359,
+				FieldInt:           -2147483648,
+				FieldInt8:          -128,
+				FieldInt16:         -32768,
+				FieldInt32:         -2147483648,
+				FieldInt64:         -9223372036854775808,
+				FieldUint:          4294967295,
+				FieldUint8:         255,
+				FieldUint16:        65535,
+				FieldUint32:        4294967295,
+				FieldUint64:        18446744073709551615,
+				FieldDuration:      d90m,
+				FieldURL:           *service1URL,
+				FieldStringArray:   []string{"milad", "mona"},
+				FieldBoolArray:     []bool{false, true},
+				FieldFloat32Array:  []float32{3.1415, 2.7182},
+				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
+				FieldIntArray:      []int{-2147483648, 2147483647},
+				FieldInt8Array:     []int8{-128, 127},
+				FieldInt16Array:    []int16{-32768, 32767},
+				FieldInt32Array:    []int32{-2147483648, 2147483647},
+				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
+				FieldUintArray:     []uint{0, 4294967295},
+				FieldUint8Array:    []uint8{0, 255},
+				FieldUint16Array:   []uint16{0, 65535},
+				FieldUint32Array:   []uint32{0, 4294967295},
+				FieldUint64Array:   []uint64{0, 18446744073709551615},
+				FieldDurationArray: []time.Duration{d90m, d120m},
+				FieldURLArray:      []url.URL{*service1URL, *service2URL},
+			},
+			map[string]string{
+				"FieldString":        "content",
+				"FieldBool":          "true",
+				"FieldFloat32":       "2.7182",
+				"FieldFloat64":       "2.7182818284",
+				"FieldInt":           "2147483647",
+				"FieldInt8":          "127",
+				"FieldInt16":         "32767",
+				"FieldInt32":         "2147483647",
+				"FieldInt64":         "9223372036854775807",
+				"FieldUint":          "2147483648",
+				"FieldUint8":         "128",
+				"FieldUint16":        "32768",
+				"FieldUint32":        "2147483648",
+				"FieldUint64":        "9223372036854775808",
+				"FieldDuration":      "4h",
+				"FieldURL":           "service-3:8080",
+				"FieldStringArray":   "mona,milad",
+				"FieldBoolArray":     "true,false",
+				"FieldFloat32Array":  "2.7182,3.1415",
+				"FieldFloat64Array":  "2.71828182845,3.14159265359",
+				"FieldIntArray":      "2147483647,-2147483648",
+				"FieldInt8Array":     "127,-128",
+				"FieldInt16Array":    "32767,-32768",
+				"FieldInt32Array":    "2147483647,-2147483648",
+				"FieldInt64Array":    "9223372036854775807,-9223372036854775808",
+				"FieldUintArray":     "4294967295,0",
+				"FieldUint8Array":    "255,0",
+				"FieldUint16Array":   "65535,0",
+				"FieldUint32Array":   "4294967295,0",
+				"FieldUint64Array":   "18446744073709551615,0",
+				"FieldDurationArray": "4h,8h",
+				"FieldURLArray":      "service-3:8080,service-4:8080",
+			},
+			true,
+			&config{
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       2.7182,
+				FieldFloat64:       2.7182818284,
+				FieldInt:           2147483647,
+				FieldInt8:          127,
+				FieldInt16:         32767,
+				FieldInt32:         2147483647,
+				FieldInt64:         9223372036854775807,
+				FieldUint:          2147483648,
+				FieldUint8:         128,
+				FieldUint16:        32768,
+				FieldUint32:        2147483648,
+				FieldUint64:        9223372036854775808,
+				FieldDuration:      d4h,
+				FieldURL:           *service3URL,
+				FieldStringArray:   []string{"mona", "milad"},
+				FieldBoolArray:     []bool{true, false},
+				FieldFloat32Array:  []float32{2.7182, 3.1415},
+				FieldFloat64Array:  []float64{2.71828182845, 3.14159265359},
+				FieldIntArray:      []int{2147483647, -2147483648},
+				FieldInt8Array:     []int8{127, -128},
+				FieldInt16Array:    []int16{32767, -32768},
+				FieldInt32Array:    []int32{2147483647, -2147483648},
+				FieldInt64Array:    []int64{9223372036854775807, -9223372036854775808},
+				FieldUintArray:     []uint{4294967295, 0},
+				FieldUint8Array:    []uint8{255, 0},
+				FieldUint16Array:   []uint16{65535, 0},
+				FieldUint32Array:   []uint32{4294967295, 0},
+				FieldUint64Array:   []uint64{18446744073709551615, 0},
+				FieldDurationArray: []time.Duration{d4h, d8h},
+				FieldURLArray:      []url.URL{*service3URL, *service4URL},
+			},
+		},
+		{
+			"NoNewValues",
+			&controller{},
+			&config{
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       2.7182,
+				FieldFloat64:       2.7182818284,
+				FieldInt:           2147483647,
+				FieldInt8:          127,
+				FieldInt16:         32767,
+				FieldInt32:         2147483647,
+				FieldInt64:         9223372036854775807,
+				FieldUint:          2147483648,
+				FieldUint8:         128,
+				FieldUint16:        32768,
+				FieldUint32:        2147483648,
+				FieldUint64:        9223372036854775808,
+				FieldDuration:      d4h,
+				FieldURL:           *service3URL,
+				FieldStringArray:   []string{"mona", "milad"},
+				FieldBoolArray:     []bool{true, false},
+				FieldFloat32Array:  []float32{2.7182, 3.1415},
+				FieldFloat64Array:  []float64{2.71828182845, 3.14159265359},
+				FieldIntArray:      []int{2147483647, -2147483648},
+				FieldInt8Array:     []int8{127, -128},
+				FieldInt16Array:    []int16{32767, -32768},
+				FieldInt32Array:    []int32{2147483647, -2147483648},
+				FieldInt64Array:    []int64{9223372036854775807, -9223372036854775808},
+				FieldUintArray:     []uint{4294967295, 0},
+				FieldUint8Array:    []uint8{255, 0},
+				FieldUint16Array:   []uint16{65535, 0},
+				FieldUint32Array:   []uint32{4294967295, 0},
+				FieldUint64Array:   []uint64{18446744073709551615, 0},
+				FieldDurationArray: []time.Duration{d4h, d8h},
+				FieldURLArray:      []url.URL{*service3URL, *service4URL},
+			},
+			map[string]string{
+				"FieldString":        "content",
+				"FieldBool":          "true",
+				"FieldFloat32":       "2.7182",
+				"FieldFloat64":       "2.7182818284",
+				"FieldInt":           "2147483647",
+				"FieldInt8":          "127",
+				"FieldInt16":         "32767",
+				"FieldInt32":         "2147483647",
+				"FieldInt64":         "9223372036854775807",
+				"FieldUint":          "2147483648",
+				"FieldUint8":         "128",
+				"FieldUint16":        "32768",
+				"FieldUint32":        "2147483648",
+				"FieldUint64":        "9223372036854775808",
+				"FieldDuration":      "4h",
+				"FieldURL":           "service-3:8080",
+				"FieldStringArray":   "mona,milad",
+				"FieldBoolArray":     "true,false",
+				"FieldFloat32Array":  "2.7182,3.1415",
+				"FieldFloat64Array":  "2.71828182845,3.14159265359",
+				"FieldIntArray":      "2147483647,-2147483648",
+				"FieldInt8Array":     "127,-128",
+				"FieldInt16Array":    "32767,-32768",
+				"FieldInt32Array":    "2147483647,-2147483648",
+				"FieldInt64Array":    "9223372036854775807,-9223372036854775808",
+				"FieldUintArray":     "4294967295,0",
+				"FieldUint8Array":    "255,0",
+				"FieldUint16Array":   "65535,0",
+				"FieldUint32Array":   "4294967295,0",
+				"FieldUint64Array":   "18446744073709551615,0",
+				"FieldDurationArray": "4h,8h",
+				"FieldURLArray":      "service-3:8080,service-4:8080",
+			},
+			false,
+			&config{
+				FieldString:        "content",
+				FieldBool:          true,
+				FieldFloat32:       2.7182,
+				FieldFloat64:       2.7182818284,
+				FieldInt:           2147483647,
+				FieldInt8:          127,
+				FieldInt16:         32767,
+				FieldInt32:         2147483647,
+				FieldInt64:         9223372036854775807,
+				FieldUint:          2147483648,
+				FieldUint8:         128,
+				FieldUint16:        32768,
+				FieldUint32:        2147483648,
+				FieldUint64:        9223372036854775808,
+				FieldDuration:      d4h,
+				FieldURL:           *service3URL,
+				FieldStringArray:   []string{"mona", "milad"},
+				FieldBoolArray:     []bool{true, false},
+				FieldFloat32Array:  []float32{2.7182, 3.1415},
+				FieldFloat64Array:  []float64{2.71828182845, 3.14159265359},
+				FieldIntArray:      []int{2147483647, -2147483648},
+				FieldInt8Array:     []int8{127, -128},
+				FieldInt16Array:    []int16{32767, -32768},
+				FieldInt32Array:    []int32{2147483647, -2147483648},
+				FieldInt64Array:    []int64{9223372036854775807, -9223372036854775808},
+				FieldUintArray:     []uint{4294967295, 0},
+				FieldUint8Array:    []uint8{255, 0},
+				FieldUint16Array:   []uint16{65535, 0},
+				FieldUint32Array:   []uint32{4294967295, 0},
+				FieldUint64Array:   []uint64{18446744073709551615, 0},
+				FieldDurationArray: []time.Duration{d4h, d8h},
+				FieldURLArray:      []url.URL{*service3URL, *service4URL},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			vStruct := reflect.ValueOf(tc.config).Elem()
+			for i := 0; i < vStruct.NumField(); i++ {
+				v := vStruct.Field(i)
+				f := vStruct.Type().Field(i)
+
+				// Only consider exported and supported fields that their names start with "Field"
+				if v.CanSet() && isTypeSupported(v.Type()) && strings.HasPrefix(f.Name, "Field") {
+					f := fieldInfo{
+						v:       v,
+						name:    f.Name,
+						listSep: ",",
+					}
+
+					res := tc.c.setField(f, tc.values[f.name])
+					assert.Equal(t, tc.expectedResult, res)
+				}
+			}
+
+			assert.True(t, configEqual(tc.expectedConfig, tc.config))
+		})
+	}
+}
+
 func TestIterateOnFields(t *testing.T) {
 	tests := []struct {
 		name                 string
@@ -2069,8 +2613,10 @@ func TestIterateOnFields(t *testing.T) {
 		expectedError        error
 	}{
 		{
-			name:           "Default",
-			c:              &controller{},
+			name: "Default",
+			c: &controller{
+				listSep: ",",
+			},
 			config:         &config{},
 			expectedValues: []reflect.Value{},
 			expectedFieldNames: []string{
@@ -2153,9 +2699,10 @@ func TestIterateOnFields(t *testing.T) {
 		{
 			name: "WithPrefixOptions",
 			c: &controller{
-				flagPrefix:    "config.",
-				envPrefix:     "CONFIG_",
-				fileEnvPrefix: "CONFIG_",
+				listSep:       ",",
+				prefixFlag:    "config.",
+				prefixEnv:     "CONFIG_",
+				prefixFileEnv: "CONFIG_",
 			},
 			config:         &config{},
 			expectedValues: []reflect.Value{},
@@ -2385,7 +2932,7 @@ func TestRegisterFlags(t *testing.T) {
 		{
 			name: "WithPrefixFlagOption",
 			c: &controller{
-				flagPrefix: "config.",
+				prefixFlag: "config.",
 			},
 			config:        &config{},
 			expectedError: nil,
@@ -2421,7 +2968,7 @@ func TestRegisterFlags(t *testing.T) {
 	}
 }
 
-func TestReadConfig(t *testing.T) {
+func TestReadFields(t *testing.T) {
 	type env struct {
 		varName string
 		value   string
@@ -2438,31 +2985,37 @@ func TestReadConfig(t *testing.T) {
 	service2URL, _ := url.Parse("service-2:8080")
 
 	tests := []struct {
-		name           string
-		args           []string
-		envs           []env
-		files          []file
-		c              *controller
-		config         interface{}
-		watchMode      bool
-		expectedConfig interface{}
+		name             string
+		args             []string
+		envs             []env
+		files            []file
+		c                *controller
+		config           interface{}
+		expectedConfig   interface{}
+		expectedFilesLen int
 	}{
 		{
 			"Empty",
 			[]string{"path/to/binary"},
 			[]env{},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{},
+			0,
 		},
 		{
 			"AllFromDefaults",
 			[]string{"path/to/binary"},
 			[]env{},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{
 				unexported:         "internal",
 				SkipFlag:           "default",
@@ -2501,7 +3054,6 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
-			false,
 			&config{
 				unexported:         "internal",
 				SkipFlag:           "default",
@@ -2540,9 +3092,10 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#1",
 			[]string{
 				"path/to/binary",
 				"-field.string", "content",
@@ -2580,9 +3133,11 @@ func TestReadConfig(t *testing.T) {
 			},
 			[]env{},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -2621,9 +3176,10 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#2",
 			[]string{
 				"path/to/binary",
 				"--field.string", "content",
@@ -2661,9 +3217,11 @@ func TestReadConfig(t *testing.T) {
 			},
 			[]env{},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -2702,9 +3260,10 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#3",
 			[]string{
 				"path/to/binary",
 				"-field.string=content",
@@ -2742,9 +3301,11 @@ func TestReadConfig(t *testing.T) {
 			},
 			[]env{},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -2783,9 +3344,10 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#4",
 			[]string{
 				"path/to/binary",
 				"--field.string=content",
@@ -2823,9 +3385,11 @@ func TestReadConfig(t *testing.T) {
 			},
 			[]env{},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -2864,6 +3428,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"AllFromFlagsWithPrefixFlagOption",
@@ -2905,10 +3470,11 @@ func TestReadConfig(t *testing.T) {
 			[]env{},
 			[]file{},
 			&controller{
-				flagPrefix: "config.",
+				listSep:       ",",
+				prefixFlag:    "config.",
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -2947,6 +3513,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"AllFromFlagsWithListSepOption",
@@ -2988,10 +3555,10 @@ func TestReadConfig(t *testing.T) {
 			[]env{},
 			[]file{},
 			&controller{
-				listSep: "|",
+				listSep:       "|",
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "",
@@ -3030,6 +3597,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"AllFromEnvVars",
@@ -3072,9 +3640,11 @@ func TestReadConfig(t *testing.T) {
 				{"FIELD_URL_ARRAY", "service-1:8080,service-2:8080"},
 			},
 			[]file{},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_env",
@@ -3113,6 +3683,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"AllFromEnvVarsWithPrefixEnvOption",
@@ -3156,10 +3727,11 @@ func TestReadConfig(t *testing.T) {
 			},
 			[]file{},
 			&controller{
-				envPrefix: "CONFIG_",
+				listSep:       ",",
+				prefixEnv:     "CONFIG_",
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_env",
@@ -3198,6 +3770,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"AllFromEnvVarsWithListSepOption",
@@ -3241,10 +3814,10 @@ func TestReadConfig(t *testing.T) {
 			},
 			[]file{},
 			&controller{
-				listSep: "|",
+				listSep:       "|",
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_env",
@@ -3283,6 +3856,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"AllFromFromFiles",
@@ -3325,9 +3899,11 @@ func TestReadConfig(t *testing.T) {
 				{"FIELD_DURATION_ARRAY_FILE", "90m,120m"},
 				{"FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080"},
 			},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_file",
@@ -3366,6 +3942,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			34,
 		},
 		{
 			"AllFromFromFilesWithPrefixFileEnvOption",
@@ -3409,10 +3986,11 @@ func TestReadConfig(t *testing.T) {
 				{"CONFIG_FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080"},
 			},
 			&controller{
-				fileEnvPrefix: "CONFIG_",
+				listSep:       ",",
+				prefixFileEnv: "CONFIG_",
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_file",
@@ -3451,6 +4029,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			34,
 		},
 		{
 			"AllFromFromFilesWithListSepOption",
@@ -3494,10 +4073,10 @@ func TestReadConfig(t *testing.T) {
 				{"FIELD_URL_ARRAY_FILE", "service-1:8080|service-2:8080"},
 			},
 			&controller{
-				listSep: "|",
+				listSep:       "|",
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_file",
@@ -3536,6 +4115,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			34,
 		},
 		{
 			"FromMixedSources",
@@ -3576,7 +4156,10 @@ func TestReadConfig(t *testing.T) {
 				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295"},
 				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
 			},
-			&controller{},
+			&controller{
+				listSep:       ",",
+				filesToFields: map[string]fieldInfo{},
+			},
 			&config{
 				FieldString:        "default",
 				FieldStringArray:   []string{"milad", "mona"},
@@ -3587,7 +4170,6 @@ func TestReadConfig(t *testing.T) {
 				FieldURL:           *service1URL,
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_env",
@@ -3626,6 +4208,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			11,
 		},
 		{
 			"FromMixedSourcesWithSkipOptions",
@@ -3667,9 +4250,11 @@ func TestReadConfig(t *testing.T) {
 				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
 			},
 			&controller{
-				skipFlag:    true,
-				skipEnv:     true,
-				skipFileEnv: true,
+				listSep:       ",",
+				skipFlag:      true,
+				skipEnv:       true,
+				skipFileEnv:   true,
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{
 				FieldString:        "default",
@@ -3681,7 +4266,6 @@ func TestReadConfig(t *testing.T) {
 				FieldURL:           *service1URL,
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
-			false,
 			&config{
 				FieldString:        "default",
 				FieldStringArray:   []string{"milad", "mona"},
@@ -3692,6 +4276,7 @@ func TestReadConfig(t *testing.T) {
 				FieldURL:           *service1URL,
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
+			0,
 		},
 		{
 			"WithTelepresenceOption",
@@ -3735,10 +4320,11 @@ func TestReadConfig(t *testing.T) {
 				{"FIELD_URL_ARRAY_FILE", "service-1:8080,service-2:8080"},
 			},
 			&controller{
-				telepresence: true,
+				listSep:       ",",
+				telepresence:  true,
+				filesToFields: map[string]fieldInfo{},
 			},
 			&config{},
-			false,
 			&config{
 				unexported:         "",
 				SkipFlag:           "from_file",
@@ -3777,89 +4363,7 @@ func TestReadConfig(t *testing.T) {
 				FieldDurationArray: []time.Duration{d90m, d120m},
 				FieldURLArray:      []url.URL{*service1URL, *service2URL},
 			},
-		},
-		{
-			"WatchMode",
-			[]string{
-				"path/to/binary",
-				"-field.string", "content",
-				"-field.bool",
-				"-field.string.array", "milad,mona",
-				"-field.bool.array", "false,true",
-			},
-			[]env{
-				{"FIELD_DURATION", "90m"},
-				{"FIELD_URL", "service-1:8080"},
-				{"FIELD_DURATION_ARRAY", "90m,120m"},
-				{"FIELD_URL_ARRAY", "service-1:8080,service-2:8080"},
-			},
-			[]file{
-				{"FIELD_FLOAT32_FILE", "3.1415"},
-				{"FIELD_FLOAT64_FILE", "3.14159265359"},
-				{"FIELD_INT_FILE", "-2147483648"},
-				{"FIELD_INT8_FILE", "-128"},
-				{"FIELD_INT16_FILE", "-32768"},
-				{"FIELD_INT32_FILE", "-2147483648"},
-				{"FIELD_INT64_FILE", "-9223372036854775808"},
-				{"FIELD_UINT_FILE", "4294967295"},
-				{"FIELD_UINT8_FILE", "255"},
-				{"FIELD_UINT16_FILE", "65535"},
-				{"FIELD_UINT32_FILE", "4294967295"},
-				{"FIELD_UINT64_FILE", "18446744073709551615"},
-				{"FIELD_FLOAT32_ARRAY_FILE", "3.1415,2.7182"},
-				{"FIELD_FLOAT64_ARRAY_FILE", "3.14159265359,2.71828182845"},
-				{"FIELD_INT_ARRAY_FILE", "-2147483648,2147483647"},
-				{"FIELD_INT8_ARRAY_FILE", "-128,127"},
-				{"FIELD_INT16_ARRAY_FILE", "-32768,32767"},
-				{"FIELD_INT32_ARRAY_FILE", "-2147483648,2147483647"},
-				{"FIELD_INT64_ARRAY_FILE", "-9223372036854775808,9223372036854775807"},
-				{"FIELD_UINT_ARRAY_FILE", "0,4294967295"},
-				{"FIELD_UINT8_ARRAY_FILE", "0,255"},
-				{"FIELD_UINT16_ARRAY_FILE", "0,65535"},
-				{"FIELD_UINT32_ARRAY_FILE", "0,4294967295"},
-				{"FIELD_UINT64_ARRAY_FILE", "0,18446744073709551615"},
-			},
-			&controller{},
-			&config{},
-			true,
-			&config{
-				unexported:         "",
-				SkipFlag:           "",
-				SkipFlagEnv:        "",
-				SkipFlagEnvFile:    "",
-				FieldString:        "",
-				FieldBool:          false,
-				FieldFloat32:       3.1415,
-				FieldFloat64:       3.14159265359,
-				FieldInt:           -2147483648,
-				FieldInt8:          -128,
-				FieldInt16:         -32768,
-				FieldInt32:         -2147483648,
-				FieldInt64:         -9223372036854775808,
-				FieldUint:          4294967295,
-				FieldUint8:         255,
-				FieldUint16:        65535,
-				FieldUint32:        4294967295,
-				FieldUint64:        18446744073709551615,
-				FieldDuration:      0,
-				FieldURL:           url.URL{},
-				FieldStringArray:   nil,
-				FieldBoolArray:     nil,
-				FieldFloat32Array:  []float32{3.1415, 2.7182},
-				FieldFloat64Array:  []float64{3.14159265359, 2.71828182845},
-				FieldIntArray:      []int{-2147483648, 2147483647},
-				FieldInt8Array:     []int8{-128, 127},
-				FieldInt16Array:    []int16{-32768, 32767},
-				FieldInt32Array:    []int32{-2147483648, 2147483647},
-				FieldInt64Array:    []int64{-9223372036854775808, 9223372036854775807},
-				FieldUintArray:     []uint{0, 4294967295},
-				FieldUint8Array:    []uint8{0, 255},
-				FieldUint16Array:   []uint16{0, 65535},
-				FieldUint32Array:   []uint32{0, 4294967295},
-				FieldUint64Array:   []uint64{0, 18446744073709551615},
-				FieldDurationArray: nil,
-				FieldURLArray:      nil,
-			},
+			34,
 		},
 	}
 
@@ -3881,9 +4385,9 @@ func TestReadConfig(t *testing.T) {
 
 			// Testing Telepresence option
 			if tc.c.telepresence {
-				err := os.Setenv(telepresenceEnvVar, "/")
+				err := os.Setenv(envTelepresenceRoot, "/")
 				assert.NoError(t, err)
-				defer os.Unsetenv(telepresenceEnvVar)
+				defer os.Unsetenv(envTelepresenceRoot)
 			}
 
 			// Write configuration files
@@ -3906,8 +4410,9 @@ func TestReadConfig(t *testing.T) {
 			vStruct, err := validateStruct(tc.config)
 			assert.NoError(t, err)
 
-			tc.c.readConfig(vStruct, tc.watchMode)
+			tc.c.readFields(vStruct)
 			assert.Equal(t, tc.expectedConfig, tc.config)
+			assert.Equal(t, tc.expectedFilesLen, len(tc.c.filesToFields))
 		})
 	}
 }
@@ -4053,7 +4558,7 @@ func TestPick(t *testing.T) {
 			},
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#1",
 			[]string{
 				"path/to/binary",
 				"-field.string", "content",
@@ -4134,7 +4639,7 @@ func TestPick(t *testing.T) {
 			},
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#2",
 			[]string{
 				"path/to/binary",
 				"--field.string", "content",
@@ -4215,7 +4720,7 @@ func TestPick(t *testing.T) {
 			},
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#3",
 			[]string{
 				"path/to/binary",
 				"-field.string=content",
@@ -4296,7 +4801,7 @@ func TestPick(t *testing.T) {
 			},
 		},
 		{
-			"AllFromFlags",
+			"AllFromFlags#4",
 			[]string{
 				"path/to/binary",
 				"--field.string=content",
@@ -5315,9 +5820,9 @@ func TestPick(t *testing.T) {
 
 			// Testing Telepresence option
 			if c.telepresence {
-				err := os.Setenv(telepresenceEnvVar, "/")
+				err := os.Setenv(envTelepresenceRoot, "/")
 				assert.NoError(t, err)
-				defer os.Unsetenv(telepresenceEnvVar)
+				defer os.Unsetenv(envTelepresenceRoot)
 			}
 
 			// Write configuration files
@@ -5363,6 +5868,8 @@ func TestWatch(t *testing.T) {
 		initValue string
 		newValue  string
 	}
+
+	updateDelay := 50 * time.Millisecond
 
 	d90m := 90 * time.Minute
 	d120m := 120 * time.Minute
@@ -5433,9 +5940,7 @@ func TestWatch(t *testing.T) {
 				make(chan Update),
 				make(chan Update),
 			},
-			[]Option{
-				WatchInterval(50 * time.Millisecond),
-			},
+			[]Option{},
 			nil,
 			&config{
 				unexported:         "",
@@ -5625,9 +6130,7 @@ func TestWatch(t *testing.T) {
 				make(chan Update, 100),
 				make(chan Update, 100),
 			},
-			[]Option{
-				WatchInterval(50 * time.Millisecond),
-			},
+			[]Option{},
 			nil,
 			&config{
 				unexported:         "",
@@ -5782,11 +6285,6 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var wg sync.WaitGroup
 
-			c := &controller{}
-			for _, opt := range tc.opts {
-				opt(c)
-			}
-
 			// Set arguments for flags
 			os.Args = tc.args
 
@@ -5798,9 +6296,13 @@ func TestWatch(t *testing.T) {
 			}
 
 			// Testing Telepresence option
+			c := &controller{}
+			for _, opt := range tc.opts {
+				opt(c)
+			}
 			if c.telepresence {
-				err := os.Setenv(telepresenceEnvVar, "/")
-				defer os.Unsetenv(telepresenceEnvVar)
+				err := os.Setenv(envTelepresenceRoot, "/")
+				defer os.Unsetenv(envTelepresenceRoot)
 				assert.NoError(t, err)
 			}
 
@@ -5823,7 +6325,7 @@ func TestWatch(t *testing.T) {
 				// Will write the new value to the file
 				wg.Add(1)
 				newValue := f.newValue
-				time.AfterFunc(c.watchInterval/2, func() {
+				time.AfterFunc(updateDelay, func() {
 					err := ioutil.WriteFile(tmpfile.Name(), []byte(newValue), 0644)
 					assert.NoError(t, err)
 					wg.Done()
@@ -5839,14 +6341,14 @@ func TestWatch(t *testing.T) {
 				}(i, sub)
 			}
 
-			stop, err := Watch(tc.config, tc.subscribers, tc.opts...)
+			close, err := Watch(tc.config, tc.subscribers, tc.opts...)
 
 			if tc.expectedError != nil {
 				assert.Equal(t, tc.expectedError, err)
-				assert.Nil(t, stop)
+				assert.Nil(t, close)
 			} else {
 				assert.NoError(t, err)
-				defer stop()
+				defer close()
 
 				tc.config.Lock()
 				// assert.Equal(t, tc.expectedInitConfig, tc.config)
@@ -5855,7 +6357,7 @@ func TestWatch(t *testing.T) {
 
 				// Wait for all files to be updated and the new values are picked up
 				wg.Wait()
-				time.Sleep(c.watchInterval)
+				time.Sleep(100 * time.Millisecond)
 
 				tc.config.Lock()
 				assert.True(t, configEqual(tc.expectedNewConfig, tc.config))

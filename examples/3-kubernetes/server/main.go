@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/moorara/konfig"
 	"github.com/moorara/observe/log"
@@ -36,13 +35,11 @@ func main() {
 	}()
 
 	// Watching for configurations
-	stop, _ := konfig.Watch(
-		&config,
-		[]chan konfig.Update{ch},
-		konfig.WatchInterval(5*time.Second),
-	)
+	close, _ := konfig.Watch(&config, []chan konfig.Update{
+		ch,
+	})
 
-	defer stop()
+	defer close()
 
 	// HTTP handler
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

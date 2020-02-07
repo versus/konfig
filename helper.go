@@ -5,7 +5,6 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 )
@@ -20,26 +19,9 @@ func (v *flagValue) Set(string) error {
 	return nil
 }
 
-func getDebugVerbosity() uint {
-	val := os.Getenv(debugEnvVar)
-	if val == "" {
-		return 0
-	}
-
-	// verbosity level should not be higher than 255 (8-bits)
-	verbosity, err := strconv.ParseUint(val, 10, 8)
-	if err != nil {
-		return 0
-	}
-
-	return uint(verbosity)
-}
-
-/*
- * tokenize breaks a field name into its tokens (generally words).
- *   UserID       -->  User, ID
- *   DatabaseURL  -->  Database, URL
- */
+// tokenize breaks a field name into its tokens (generally words).
+//   UserID       -->  User, ID
+//   DatabaseURL  -->  Database, URL
 func tokenize(name string) []string {
 	tokens := []string{}
 	current := string(name[0])
@@ -77,11 +59,9 @@ func tokenize(name string) []string {
 	return tokens
 }
 
-/*
- * getFlagName returns a canonical flag name for a field.
- *   UserID       -->  user.id
- *   DatabaseURL  -->  database.url
- */
+// getFlagName returns a canonical flag name for a field.
+//   UserID       -->  user.id
+//   DatabaseURL  -->  database.url
 func getFlagName(name string) string {
 	parts := tokenize(name)
 	result := strings.Join(parts, ".")
@@ -90,11 +70,9 @@ func getFlagName(name string) string {
 	return result
 }
 
-/*
- * getFlagName returns a canonical environment variable name for a field.
- *   UserID       -->  USER_ID
- *   DatabaseURL  -->  DATABASE_URL
- */
+// getFlagName returns a canonical environment variable name for a field.
+//   UserID       -->  USER_ID
+//   DatabaseURL  -->  DATABASE_URL
 func getEnvVarName(name string) string {
 	parts := tokenize(name)
 	result := strings.Join(parts, "_")
@@ -103,11 +81,9 @@ func getEnvVarName(name string) string {
 	return result
 }
 
-/*
- * getFileVarName returns a canonical environment variable name for value file of a field.
- *   UserID       -->  USER_ID_FILE
- *   DatabaseURL  -->  DATABASE_URL_FILE
- */
+// getFileVarName returns a canonical environment variable name for value file of a field.
+//   UserID       -->  USER_ID_FILE
+//   DatabaseURL  -->  DATABASE_URL_FILE
 func getFileEnvVarName(name string) string {
 	parts := tokenize(name)
 	result := strings.Join(parts, "_")
@@ -117,11 +93,9 @@ func getFileEnvVarName(name string) string {
 	return result
 }
 
-/*
- * getFlagValue returns the value set for a flag.
- *   - The flag name can start with - or --
- *   - The flag value can be separated by space or =
- */
+// getFlagValue returns the value set for a flag.
+//   - The flag name can start with - or --
+//   - The flag value can be separated by space or =
 func getFlagValue(flagName string) string {
 	flagRegex := regexp.MustCompile("-{1,2}" + flagName)
 	genericRegex := regexp.MustCompile("^-{1,2}[A-Za-z].*")

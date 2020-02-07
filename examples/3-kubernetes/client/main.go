@@ -48,13 +48,11 @@ func main() {
 	}()
 
 	// Watching for configurations
-	stop, _ := konfig.Watch(
-		&config,
-		[]chan konfig.Update{ch},
-		konfig.WatchInterval(2*time.Second),
-	)
+	close, _ := konfig.Watch(&config, []chan konfig.Update{
+		ch,
+	})
 
-	defer stop()
+	defer close()
 
 	// Sending requests to server
 	logger.InfoKV("message", "start sending requests ...")
